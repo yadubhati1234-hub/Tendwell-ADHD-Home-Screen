@@ -24,7 +24,9 @@ import androidx.compose.ui.unit.dp
 import app.tendwell.BuildConfigInfo
 import app.tendwell.ui.components.TwIconButton
 import app.tendwell.ui.components.TwIcons
+import app.tendwell.timebar.TimeBarModel
 import app.tendwell.ui.components.TwRow
+import app.tendwell.ui.components.TwToggleRow
 import app.tendwell.ui.theme.Tendwell
 import app.tendwell.ui.theme.TendwellType
 
@@ -32,6 +34,10 @@ import app.tendwell.ui.theme.TendwellType
 @Composable
 fun SettingsScreen(
     isDefaultHome: Boolean,
+    bedtimeMin: Int,
+    calendarOn: Boolean,
+    onPickBedtime: () -> Unit,
+    onToggleCalendar: (Boolean) -> Unit,
     onOpenHomeSettings: () -> Unit,
     onBack: () -> Unit,
 ) {
@@ -49,6 +55,33 @@ fun SettingsScreen(
         Text("Settings", style = TendwellType.h1, color = c.ink, modifier = Modifier.semantics { heading() })
 
         val cardShape = RoundedCornerShape(24.dp)
+        SectionLabel("Time bar")
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .then(if (c.isDark) Modifier else Modifier.shadow(6.dp, cardShape, ambientColor = c.ink, spotColor = c.ink))
+                .clip(cardShape)
+                .background(c.surface)
+                .border(1.dp, c.cardLine, cardShape),
+        ) {
+            TwRow(
+                "Bedtime",
+                onClick = onPickBedtime,
+                icon = TwIcons.Moon,
+                supporting = "The bar counts down to ${TimeBarModel.formatClock(bedtimeMin)}",
+                trailing = TwIcons.ChevronRight,
+            )
+            HorizontalDivider(color = c.line)
+            TwToggleRow(
+                "Show calendar events",
+                supporting = "Read on this phone only, never sent anywhere",
+                icon = TwIcons.Calendar,
+                checked = calendarOn,
+                onCheckedChange = onToggleCalendar,
+            )
+        }
+
+        SectionLabel("Home screen")
         Column(
             Modifier
                 .fillMaxWidth()
@@ -83,4 +116,9 @@ fun SettingsScreen(
             color = c.ink3,
         )
     }
+}
+
+@Composable
+private fun SectionLabel(text: String) {
+    Text(text.uppercase(), style = TendwellType.eyebrow, color = Tendwell.colors.ink3, modifier = Modifier.semantics { heading() })
 }

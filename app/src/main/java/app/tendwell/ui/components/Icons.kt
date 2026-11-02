@@ -42,4 +42,20 @@ object TwIcons {
     val Home = icon("home", "M4.5 11L12 4.5l7.5 6.5V19a1.5 1.5 0 0 1-1.5 1.5h-12A1.5 1.5 0 0 1 4.5 19z")
     val Info = icon("info", circle(12f, 12f, 8f), "M12 11v5", "M12 8h.01")
     val Minus = icon("minus", "M5 12h14")
+    val Pause = icon("pause", "M9 6v12M15 6v12", stroke = 2.4f)
+    val Clock = icon("clock", circle(12f, 12f, 8f), "M12 8v4.5l3 2")
+    val Calendar = icon("calendar", "M7 5.5h10a3 3 0 0 1 3 3v8a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3v-8a3 3 0 0 1 3-3z", "M4 10h16M8.5 3.5v4M15.5 3.5v4")
+    val Bell = icon("bell", "M6 16v-5a6 6 0 0 1 12 0v5l1.5 2h-15z", "M10 20.5a2.2 2.2 0 0 0 4 0")
+    val Target = icon("target", circle(12f, 12f, 8f), circle(12f, 12f, 3.5f))
+    val Hourglass = icon("hourglass", "M7 4h10M7 20h10M8 4v2.5c0 2 4 3.5 4 5.5s-4 3.5-4 5.5V20M16 4v2.5c0 2-4 3.5-4 5.5s4 3.5 4 5.5V20")
+    val Moon = icon("moon", "M19 14.5A7.5 7.5 0 0 1 9.5 5a7.5 7.5 0 1 0 9.5 9.5z")
+    val Sprout = icon("sprout", "M12 20v-7", "M12 13c0-4 3-6.5 7-6.5 0 4-3 6.5-7 6.5z", "M12 15.5c0-3-2.3-5-5.5-5 0 3 2.3 5 5.5 5z")
+
+    /** The filled play triangle (no stroke). */
+    val Play: ImageVector = ImageVector.Builder("play", 24.dp, 24.dp, 24f, 24f).apply {
+        addPath(
+            pathData = addPathNodes("M8 5.8v12.4a1 1 0 0 0 1.5.86l10-6.2a1 1 0 0 0 0-1.72l-10-6.2A1 1 0 0 0 8 5.8z"),
+            fill = SolidColor(Color.Black),
+        )
+    }.build()
 }

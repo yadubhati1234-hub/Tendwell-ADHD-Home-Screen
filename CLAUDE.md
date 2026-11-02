@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Status
 
-Scaffolded on 2026-11-02: the core launcher (HOME intent, Home screen, search over all apps, long-press actions, first Settings screen) is in place. Time bar, Now card, check-in, pause screen, onboarding, billing, Firebase and Room are still to come.
+Scaffolded on 2026-11-02. Done: core launcher (HOME intent, Home, search, long-press actions, Settings), time bar, Now card with timer and break, daily check-in. Still to come: pause screen, focus hours, insights, onboarding, billing, Firebase and Room.
 
 ## What this is
 
@@ -39,7 +39,11 @@ Single Gradle module `:app`, package `app.tendwell` (debug builds use `app.tendw
 - `MainActivity` is the HOME activity and holds the tiny screen state (Home, Search, Settings) itself, with no navigation library, to keep cold start light. Pressing Home while Tendwell shows returns to Home.
 - `apps/AppRepository` lists launchable apps through `LauncherApps` (main and work profiles) and refreshes on install/remove. Package visibility comes from the `<queries>` block in the manifest, not `QUERY_ALL_PACKAGES`.
 - `data/Prefs` is a Preferences DataStore. Essential apps are saved as ordered keys `package/class#userSerial`, at most 7.
-- `home/`, `search/`, `settings/` hold the screens; `search/AppSearch` is pure Kotlin (ranking, accent-insensitive matching, letter groups) and is unit-tested.
+- `data/Prefs` also holds today's state (`DayState`): bedtime, calendar toggle, the one thing, last check-in date, recent tasks and the Now task. `day/DayViewModel` owns it.
+- `now/NowTask` is the pure timer model (pause, resume, +5 min, done, break) and is unit-tested. `now/TimerAlarm` schedules the end-of-timer nudge with `setAndAllowWhileIdle` (inexact, no exact-alarm permission). `POST_NOTIFICATIONS` is asked for when the first timer starts.
+- `timebar/TimeBarModel` is the pure maths and labels for the time bar (unit-tested, handles bedtimes after midnight); `timebar/CalendarReader` reads today's events only when the user turns calendar on in Settings (`READ_CALENDAR`).
+- `checkin/` is the daily "one thing" screen, shown the first time Home opens each day.
+- `home/`, `search/`, `settings/` hold the other screens; `search/AppSearch` is pure Kotlin (ranking, accent-insensitive matching, letter groups) and is unit-tested.
 - `ui/theme/` has the design tokens (`Tokens.kt`, copied from the design canvas's `tokens()`), the bundled variable fonts Fraunces and Plus Jakarta Sans (`res/font/`, OFL texts in `assets/licenses/`) and `TendwellType`. Use `Tendwell.colors` and `TendwellType`, not Material defaults. `ui/components/Icons.kt` has the spec's line icons.
 - The launcher icon is a placeholder (the spec's sprout icon on sage) until the real icon exists.
 
