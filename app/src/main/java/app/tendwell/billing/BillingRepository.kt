@@ -152,6 +152,13 @@ class BillingRepository(context: Context, private val prefs: Prefs) : PurchasesU
         return PlanOffer(plan, paid.formattedPrice, paid.priceAmountMicros, paid.priceCurrencyCode, trialOf(chosen), chosen.offerToken)
     }
 
+    /** Turns Pro on without a purchase when [code] is the reviewers' access code. */
+    suspend fun redeemAccessCode(code: String): Boolean {
+        if (!AccessCode.matches(code)) return false
+        prefs.setAccessCodePro()
+        return true
+    }
+
     /** Opens Google Play's purchase sheet. Returns false if the plan is not loaded. */
     fun launch(activity: Activity, offer: PlanOffer): Boolean {
         val productId = if (offer.plan == ProPlan.Lifetime) ProductIds.PRO_LIFETIME else ProductIds.PRO_SUBSCRIPTION

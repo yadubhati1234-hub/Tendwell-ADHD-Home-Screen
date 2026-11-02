@@ -55,13 +55,19 @@ class Prefs(context: Context) {
     }
 
     /**
-     * Whether this Google account owns Pro. Billing refreshes it on every start,
-     * so the cached value only bridges the moment before Play answers.
+     * Whether Pro is on: this Google account owns it, or an access code turned it
+     * on. Billing refreshes the purchase part on start, so the cached value only
+     * bridges the moment before Play answers; the access code part stays.
      */
-    val isPro: Flow<Boolean> = store.data.map { it[IS_PRO] ?: false }
+    val isPro: Flow<Boolean> = store.data.map { (it[IS_PRO] ?: false) || (it[ACCESS_CODE_PRO] ?: false) }
 
     suspend fun setPro(on: Boolean) {
         store.edit { it[IS_PRO] = on }
+    }
+
+    /** Pro turned on by the reviewers' access code (see AccessCode). Billing never clears it. */
+    suspend fun setAccessCodePro() {
+        store.edit { it[ACCESS_CODE_PRO] = true }
     }
 
     /** Focus hours (Pro). Raw saved form, decoded by FocusHours; null until first saved. */
@@ -167,6 +173,7 @@ class Prefs(context: Context) {
         private val ESSENTIALS = stringPreferencesKey("essential_apps")
         private val PAUSED = stringPreferencesKey("paused_apps")
         private val IS_PRO = booleanPreferencesKey("is_pro")
+        private val ACCESS_CODE_PRO = booleanPreferencesKey("access_code_pro")
         private val ONBOARDING_DONE = booleanPreferencesKey("onboarding_done")
         private val FOCUS_BLOCKS = stringPreferencesKey("focus_blocks")
         private val BEDTIME = intPreferencesKey("bedtime_min")
