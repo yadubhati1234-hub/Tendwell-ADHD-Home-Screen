@@ -58,7 +58,7 @@ Pro subscriptions and the lifetime purchase are processed by Google Play under [
 
 - You can turn off calendar access and usage access at any time in the app's settings or in Android settings.
 - You can delete all data the app holds by uninstalling it, or by clearing the app's storage in Android settings.
-- To ask about or delete data held by Firebase, contact us at the address below.
+- To delete data held by Firebase, follow the steps on [Delete your Tendwell data](../delete-data/), or contact us at the address below.
 
 ## Children
 

@@ -10,3 +10,5 @@ One-time setup (repo owner):
 4. Paste that URL into Play Console, App content, Privacy policy, and into the store listing.
 
 Keep this page and the Play Data safety form in sync when features change (for example when analytics events are added).
+
+`docs/delete-data/index.md` is the data deletion page whose URL is in the Play Data safety form (`https://yadubhati1234-hub.github.io/Tendwell-ADHD-Home-Screen/delete-data/`). Keep its steps true: it points users to a "Copy analytics ID" row in Settings, which has to ship with Firebase.
