@@ -10,9 +10,9 @@ import java.security.MessageDigest
  */
 object AccessCode {
     /** SHA-256 of the reviewers' code, normalized (see [normalize]). */
-    private const val REVIEW_HASH = "7dfe454c1b68e82759d5fa13475ecb1f22456ab89e071e4a6d8729721555cb7c"
+    private const val REVIEW_HASH = "d96f0470f7adc1d853289b5711976ba539083d078093c084a2ec78121efb38c0"
 
-    /** Letters and digits only, uppercase, so "zkxk d4yr" and "ZKXK-D4YR" read the same. */
+    /** Letters and digits only, uppercase, so "abcd 1234" and "ABCD-1234" read the same. */
     fun normalize(input: String): String = input.filter { it.isLetterOrDigit() }.uppercase()
 
     fun sha256(text: String): String =
