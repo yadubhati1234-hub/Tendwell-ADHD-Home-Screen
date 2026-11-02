@@ -30,7 +30,7 @@ Planned pieces: a local database (Room), Google Play Billing, Firebase Crashlyti
 - **The pause screen only intercepts launches made from this launcher.** Catching launches from notifications, recents or other launchers would need Usage Access (`PACKAGE_USAGE_STATS`). That's a product decision and it has Play policy implications, so don't add it silently.
 - **Timer alerts** need the `POST_NOTIFICATIONS` runtime permission (Android 13+). Use inexact alarms or WorkManager rather than `SCHEDULE_EXACT_ALARM`, which Play restricts.
 - **Billing can only be tested on a build uploaded to a Play testing track** (internal testing is enough). Check out the test SKUs there; they don't work in a debug sideload.
-- **Anything collected on the device** (check-ins, usage, analytics, crash data) must match the Play Console Data safety form and the privacy policy. Update those whenever data collection changes.
+- **Anything collected on the device** (check-ins, usage, analytics, crash data) must match the Play Console Data safety form and the privacy policy. Update those whenever data collection changes. The data deletion page (`docs/delete-data/`) is linked from the Data safety form, so keep it in step too.
 
 ## Layout
 
