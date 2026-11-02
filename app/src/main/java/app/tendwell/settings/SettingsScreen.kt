@@ -1,0 +1,86 @@
+package app.tendwell.settings
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.dp
+import app.tendwell.BuildConfigInfo
+import app.tendwell.ui.components.TwIconButton
+import app.tendwell.ui.components.TwIcons
+import app.tendwell.ui.components.TwRow
+import app.tendwell.ui.theme.Tendwell
+import app.tendwell.ui.theme.TendwellType
+
+/** First cut of Settings: home-app switching and the app version. More rows arrive with each feature. */
+@Composable
+fun SettingsScreen(
+    isDefaultHome: Boolean,
+    onOpenHomeSettings: () -> Unit,
+    onBack: () -> Unit,
+) {
+    val c = Tendwell.colors
+    Column(
+        Modifier
+            .fillMaxSize()
+            .background(c.bg)
+            .safeDrawingPadding()
+            .verticalScroll(rememberScrollState())
+            .padding(start = 24.dp, end = 24.dp, top = 8.dp, bottom = 28.dp),
+        verticalArrangement = Arrangement.spacedBy(20.dp),
+    ) {
+        TwIconButton(TwIcons.ChevronLeft, contentDescription = "Back", onClick = onBack, modifier = Modifier.offset(x = (-10).dp))
+        Text("Settings", style = TendwellType.h1, color = c.ink, modifier = Modifier.semantics { heading() })
+
+        val cardShape = RoundedCornerShape(24.dp)
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .then(if (c.isDark) Modifier else Modifier.shadow(6.dp, cardShape, ambientColor = c.ink, spotColor = c.ink))
+                .clip(cardShape)
+                .background(c.surface)
+                .border(1.dp, c.cardLine, cardShape),
+        ) {
+            if (isDefaultHome) {
+                TwRow(
+                    "Switch back to my old launcher",
+                    onClick = onOpenHomeSettings,
+                    icon = TwIcons.Home,
+                    supporting = "Opens Android's Home app setting",
+                    trailing = TwIcons.ChevronRight,
+                )
+            } else {
+                TwRow(
+                    "Make Tendwell your home screen",
+                    onClick = onOpenHomeSettings,
+                    icon = TwIcons.Home,
+                    supporting = "Choose Tendwell in Android's Home app setting",
+                    trailing = TwIcons.ChevronRight,
+                )
+            }
+            HorizontalDivider(color = c.line)
+            TwRow("Version", onClick = null, supporting = BuildConfigInfo.versionLabel)
+        }
+        Text(
+            "Designed for ADHD brains. Everything stays on your phone.",
+            style = TendwellType.caption,
+            color = c.ink3,
+        )
+    }
+}
