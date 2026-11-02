@@ -28,7 +28,7 @@ The app stores the following only on your device. We cannot see it, and it is de
 
 ### Calendar (optional)
 
-If you turn on the calendar mode of the time bar, the app asks for permission to read your calendar. It reads the time of your next event on your phone to show how long you have until it. Calendar data never leaves your device. Without this permission, the time bar counts down to the bedtime you set.
+If you turn on the calendar mode of the time bar, the app asks for permission to read your calendar. It reads the titles and times of today's events on your phone to show them on the time bar and how long you have until the next one. Calendar data never leaves your device. Without this permission, the time bar counts down to the bedtime you set.
 
 ### Usage access (optional)
 

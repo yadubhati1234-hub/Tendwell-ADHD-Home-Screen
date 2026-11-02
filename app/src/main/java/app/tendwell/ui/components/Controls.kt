@@ -1,6 +1,10 @@
 package app.tendwell.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.runtime.getValue
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -98,3 +102,50 @@ fun TwRow(
         }
     }
 }
+
+/** A settings row with an on/off switch (spec toggle: 52x32 track, 24dp knob). */
+@Composable
+fun TwToggleRow(
+    label: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier,
+    icon: ImageVector? = null,
+    supporting: String? = null,
+) {
+    val c = Tendwell.colors
+    val knobX by androidx.compose.animation.core.animateDpAsState(if (checked) 24.dp else 4.dp, label = "knob")
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .heightIn(min = 56.dp)
+            .switchToggle(checked, onCheckedChange)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        if (icon != null) Icon(icon, contentDescription = null, tint = c.ink, modifier = Modifier.size(22.dp))
+        androidx.compose.foundation.layout.Column(Modifier.weight(1f)) {
+            Text(label, style = TendwellType.rowLabel, color = c.ink)
+            if (supporting != null) Text(supporting, style = TendwellType.small, color = c.ink3)
+        }
+        Box(
+            Modifier
+                .size(width = 52.dp, height = 32.dp)
+                .clip(RoundedCornerShape(999.dp))
+                .background(if (checked) c.primary else c.surface2)
+                .then(if (checked) Modifier else Modifier.border(1.5.dp, c.line, RoundedCornerShape(999.dp))),
+        ) {
+            Box(
+                Modifier
+                    .offset(x = knobX, y = 4.dp)
+                    .size(24.dp)
+                    .clip(CircleShape)
+                    .background(if (checked) c.onPrimary else c.ink3),
+            )
+        }
+    }
+}
+
+private fun Modifier.switchToggle(checked: Boolean, onCheckedChange: (Boolean) -> Unit): Modifier =
+    this.toggleable(value = checked, role = Role.Switch, onValueChange = onCheckedChange)
