@@ -4,9 +4,9 @@ title: Privacy policy
 
 # Privacy policy
 
-Last updated: [DATE OF PUBLISHING]
+Last updated: 2 November 2026
 
-This policy covers Tendwell (package app.tendwell), an Android home-screen app published on Google Play by [DEVELOPER NAME] ("we"). It explains what the app collects, why, and what stays on your phone.
+This policy covers Tendwell (package app.tendwell), an Android home-screen app published on Google Play by db10apps ("we"). It explains what the app collects, why, and what stays on your phone.
 
 ## The short version
 
@@ -70,4 +70,4 @@ If we change this policy, we will update the date at the top and, for significan
 
 ## Contact
 
-[SUPPORT EMAIL]
+[db10apps@gmail.com](mailto:db10apps@gmail.com)
