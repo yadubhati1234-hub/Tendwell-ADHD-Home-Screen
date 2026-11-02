@@ -6,7 +6,7 @@ title: Privacy policy
 
 Last updated: [DATE OF PUBLISHING]
 
-This policy covers the Android home-screen app published on Google Play by [DEVELOPER NAME] ("we"). It explains what the app collects, why, and what stays on your phone.
+This policy covers Tendwell (package app.tendwell), an Android home-screen app published on Google Play by [DEVELOPER NAME] ("we"). It explains what the app collects, why, and what stays on your phone.
 
 ## The short version
 
