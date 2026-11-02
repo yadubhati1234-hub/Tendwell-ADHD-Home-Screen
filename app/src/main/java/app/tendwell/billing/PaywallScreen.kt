@@ -8,6 +8,9 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -31,29 +34,40 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.tendwell.onboarding.FeatureRow
 import app.tendwell.onboarding.OnboardingPage
 import app.tendwell.onboarding.OnboardingTitle
 import app.tendwell.onboarding.PrimaryPill
+import app.tendwell.onboarding.QuietButton
 import app.tendwell.onboarding.StepDots
 import app.tendwell.data.Prefs
 import app.tendwell.ui.components.TwIconButton
@@ -63,6 +77,7 @@ import app.tendwell.ui.components.TwSecondaryButton
 import app.tendwell.ui.theme.Tendwell
 import app.tendwell.ui.theme.TendwellType
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.time.LocalDate
 
 const val PRIVACY_URL = "https://yadubhati1234-hub.github.io/Tendwell-ADHD-Home-Screen/privacy/"
@@ -80,6 +95,7 @@ fun PaywallRoute(billing: BillingRepository, step: Int?, onDone: () -> Unit) {
     val event by billing.events.collectAsStateWithLifecycle()
     var restoring by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
 
     LaunchedEffect(Unit) { billing.loadOffers() }
     LaunchedEffect(event) {
@@ -121,6 +137,17 @@ fun PaywallRoute(billing: BillingRepository, step: Int?, onDone: () -> Unit) {
         onPrivacy = {
             runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(PRIVACY_URL)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
         },
+        onAccessCode = { code ->
+            val ok = billing.redeemAccessCode(code)
+            if (ok) {
+                message = "Pro is on"
+                scope.launch {
+                    delay(1200)
+                    onDone()
+                }
+            }
+            ok
+        },
     )
 }
 
@@ -137,9 +164,11 @@ fun PaywallScreen(
     onRetry: () -> Unit,
     onBuy: (PlanOffer) -> Unit,
     onPrivacy: () -> Unit,
+    onAccessCode: suspend (String) -> Boolean,
 ) {
     val c = Tendwell.colors
     val offers = (store as? StoreState.Ready)?.offers.orEmpty()
+    var codeOpen by rememberSaveable { mutableStateOf(false) }
     var chosenName by rememberSaveable { mutableStateOf(ProPlan.Yearly.name) }
     val chosen = offers[ProPlan.valueOf(chosenName)] ?: ProPlan.entries.firstNotNullOfOrNull { offers[it] }
 
@@ -244,17 +273,9 @@ fun PaywallScreen(
                 }
             }
 
-            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                Box(
-                    Modifier
-                        .height(44.dp)
-                        .clip(RoundedCornerShape(999.dp))
-                        .clickable(role = Role.Button, onClick = onPrivacy)
-                        .padding(horizontal = 10.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text("Privacy", style = TendwellType.caption.copy(fontWeight = FontWeight.SemiBold), color = c.ink3)
-                }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
+                FooterLink("Privacy", onClick = onPrivacy)
+                FooterLink("Have an access code?", onClick = { codeOpen = true })
             }
         }
 
@@ -276,6 +297,119 @@ fun PaywallScreen(
             ) {
                 Text(message.orEmpty(), style = TendwellType.caption.copy(fontWeight = FontWeight.SemiBold), color = c.bg)
             }
+        }
+    }
+
+    if (codeOpen) {
+        AccessCodeDialog(
+            onDismiss = { codeOpen = false },
+            onSubmit = { code -> onAccessCode(code).also { ok -> if (ok) codeOpen = false } },
+        )
+    }
+}
+
+@Composable
+private fun FooterLink(text: String, onClick: () -> Unit) {
+    Box(
+        Modifier
+            .height(44.dp)
+            .clip(RoundedCornerShape(999.dp))
+            .clickable(role = Role.Button, onClick = onClick)
+            .padding(horizontal = 10.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(text, style = TendwellType.caption.copy(fontWeight = FontWeight.SemiBold), color = Tendwell.colors.ink3)
+    }
+}
+
+/**
+ * Where Google Play's reviewers type the access code from Play Console's
+ * "Sign in details" (see [AccessCode]). Anyone else simply has no code.
+ */
+@Composable
+private fun AccessCodeDialog(onDismiss: () -> Unit, onSubmit: suspend (String) -> Boolean) {
+    val c = Tendwell.colors
+    val scope = rememberCoroutineScope()
+    val focus = remember { FocusRequester() }
+    var code by rememberSaveable { mutableStateOf("") }
+    var wrong by remember { mutableStateOf(false) }
+    var checking by remember { mutableStateOf(false) }
+    val submit: () -> Unit = {
+        if (code.isNotBlank() && !checking) {
+            checking = true
+            scope.launch {
+                val ok = onSubmit(code)
+                checking = false
+                if (!ok) wrong = true
+            }
+        }
+    }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(28.dp))
+                .background(c.bg)
+                .padding(start = 24.dp, end = 24.dp, top = 24.dp, bottom = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text("Access code", style = TendwellType.cardTitle, color = c.ink, modifier = Modifier.semantics { heading() })
+            Text("If you were given a code, enter it to turn on Pro.", style = TendwellType.small, color = c.ink2)
+            val shape = RoundedCornerShape(16.dp)
+            val fieldStyle = TendwellType.body.copy(fontWeight = FontWeight.SemiBold, letterSpacing = 1.sp)
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 52.dp)
+                    .clip(shape)
+                    .background(c.surface)
+                    .border(1.5.dp, if (wrong) c.ink else c.line, shape)
+                    .padding(horizontal = 16.dp),
+                contentAlignment = Alignment.CenterStart,
+            ) {
+                if (code.isEmpty()) Text("XXXX-XXXX-XXXX-XXXX", style = fieldStyle, color = c.ink3)
+                BasicTextField(
+                    value = code,
+                    onValueChange = {
+                        code = it.take(32)
+                        wrong = false
+                    },
+                    singleLine = true,
+                    textStyle = fieldStyle.copy(color = c.ink),
+                    cursorBrush = SolidColor(c.primary),
+                    keyboardOptions = KeyboardOptions(
+                        capitalization = KeyboardCapitalization.Characters,
+                        autoCorrectEnabled = false,
+                        keyboardType = KeyboardType.Ascii,
+                        imeAction = ImeAction.Done,
+                    ),
+                    keyboardActions = KeyboardActions(onDone = { submit() }),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusRequester(focus)
+                        .semantics { contentDescription = "Access code" },
+                )
+            }
+            if (wrong) {
+                Text(
+                    "That code didn't work. Check it and try again.",
+                    style = TendwellType.small.copy(fontWeight = FontWeight.SemiBold),
+                    color = c.ink,
+                    modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                )
+            }
+            PrimaryPill(
+                text = if (checking) "Checking…" else "Turn on Pro",
+                onClick = submit,
+                enabled = code.isNotBlank() && !checking,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+            QuietButton("Cancel", onClick = onDismiss)
+        }
+        LaunchedEffect(Unit) {
+            delay(150)
+            runCatching { focus.requestFocus() }
         }
     }
 }
