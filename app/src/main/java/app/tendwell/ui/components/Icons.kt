@@ -48,6 +48,7 @@ object TwIcons {
     val Bell = icon("bell", "M6 16v-5a6 6 0 0 1 12 0v5l1.5 2h-15z", "M10 20.5a2.2 2.2 0 0 0 4 0")
     val Target = icon("target", circle(12f, 12f, 8f), circle(12f, 12f, 3.5f))
     val Hourglass = icon("hourglass", "M7 4h10M7 20h10M8 4v2.5c0 2 4 3.5 4 5.5s-4 3.5-4 5.5V20M16 4v2.5c0 2-4 3.5-4 5.5s4 3.5 4 5.5V20")
+    val Undo = icon("undo", "M9 14L4 9l5-5", "M4 9h10a6 6 0 0 1 0 12h-3")
     val Moon = icon("moon", "M19 14.5A7.5 7.5 0 0 1 9.5 5a7.5 7.5 0 1 0 9.5 9.5z")
     val Sprout = icon("sprout", "M12 20v-7", "M12 13c0-4 3-6.5 7-6.5 0 4-3 6.5-7 6.5z", "M12 15.5c0-3-2.3-5-5.5-5 0 3 2.3 5 5.5 5z")
 

@@ -45,6 +45,15 @@ class Prefs(context: Context) {
         store.edit { it[ESSENTIALS] = keys.joinToString("\n") }
     }
 
+    /** Apps that get the 10-second pause before opening. */
+    val pausedKeys: Flow<Set<String>> = store.data.map { prefs ->
+        prefs[PAUSED]?.split('\n')?.filter { it.isNotBlank() }?.toSet().orEmpty()
+    }
+
+    suspend fun setPausedKeys(keys: Set<String>) {
+        store.edit { it[PAUSED] = keys.joinToString("\n") }
+    }
+
     val day: Flow<DayState> = store.data.map { p ->
         DayState(
             bedtimeMin = p[BEDTIME] ?: DEFAULT_BEDTIME,
@@ -124,11 +133,15 @@ class Prefs(context: Context) {
 
     companion object {
         const val MAX_ESSENTIALS = 7
+        /** Paused apps on the free plan (Pro will lift this). */
+        const val MAX_FREE_PAUSED = 3
+        const val PAUSE_SECONDS = 10
         const val DEFAULT_BEDTIME = 23 * 60
         const val DEFAULT_DAY_START = 7 * 60
         private const val MAX_RECENT = 6
 
         private val ESSENTIALS = stringPreferencesKey("essential_apps")
+        private val PAUSED = stringPreferencesKey("paused_apps")
         private val BEDTIME = intPreferencesKey("bedtime_min")
         private val DAY_START = intPreferencesKey("day_start_min")
         private val CALENDAR_ON = booleanPreferencesKey("calendar_on")

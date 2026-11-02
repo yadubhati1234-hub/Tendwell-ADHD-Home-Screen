@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import app.tendwell.BuildConfigInfo
 import app.tendwell.ui.components.TwIconButton
 import app.tendwell.ui.components.TwIcons
+import app.tendwell.data.Prefs
 import app.tendwell.timebar.TimeBarModel
 import app.tendwell.ui.components.TwRow
 import app.tendwell.ui.components.TwToggleRow
@@ -36,6 +37,7 @@ fun SettingsScreen(
     isDefaultHome: Boolean,
     bedtimeMin: Int,
     calendarOn: Boolean,
+    pausedNames: List<String>,
     onPickBedtime: () -> Unit,
     onToggleCalendar: (Boolean) -> Unit,
     onOpenHomeSettings: () -> Unit,
@@ -81,6 +83,28 @@ fun SettingsScreen(
             )
         }
 
+        SectionLabel("Pause")
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .then(if (c.isDark) Modifier else Modifier.shadow(6.dp, cardShape, ambientColor = c.ink, spotColor = c.ink))
+                .clip(cardShape)
+                .background(c.surface)
+                .border(1.dp, c.cardLine, cardShape),
+        ) {
+            TwRow(
+                "Paused apps (${pausedNames.size} of ${Prefs.MAX_FREE_PAUSED})",
+                onClick = null,
+                enabled = true,
+                icon = TwIcons.Hourglass,
+                supporting = if (pausedNames.isEmpty()) {
+                    "None yet. Long-press an app in search to pause it."
+                } else {
+                    pausedNames.joinToString(", ") + ". Long-press one to stop pausing it."
+                },
+            )
+        }
+
         SectionLabel("Home screen")
         Column(
             Modifier
@@ -108,7 +132,7 @@ fun SettingsScreen(
                 )
             }
             HorizontalDivider(color = c.line)
-            TwRow("Version", onClick = null, supporting = BuildConfigInfo.versionLabel)
+            TwRow("Version", onClick = null, enabled = true, supporting = BuildConfigInfo.versionLabel)
         }
         Text(
             "Designed for ADHD brains. Everything stays on your phone.",

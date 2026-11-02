@@ -41,6 +41,7 @@ import app.tendwell.now.NowPhase
 import app.tendwell.now.NowSetSheet
 import app.tendwell.now.TimerAlarm
 import app.tendwell.now.TimerScreen
+import app.tendwell.pause.PauseScreen
 import app.tendwell.search.SearchScreen
 import app.tendwell.settings.SettingsScreen
 import app.tendwell.timebar.CalendarReader
@@ -51,7 +52,7 @@ import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import java.time.LocalDate
 
-private enum class Screen { Home, Search, Settings, Timer, CheckIn }
+private enum class Screen { Home, Search, Settings, Timer, CheckIn, Pause }
 
 /** The launcher activity. It handles the HOME intent, so pressing Home always lands here. */
 class MainActivity : ComponentActivity() {
@@ -94,6 +95,7 @@ class MainActivity : ComponentActivity() {
         var sheetFor by rememberSaveable { mutableStateOf<String?>(null) }
         var sheetOnHome by rememberSaveable { mutableStateOf(false) }
         var showNowSet by rememberSaveable { mutableStateOf(false) }
+        var pauseFor by rememberSaveable { mutableStateOf<String?>(null) }
         var isDefaultHome by remember { mutableStateOf(true) }
         // Check-in is offered once per day, the first time Home shows.
         var checkInOfferedOn by rememberSaveable { mutableStateOf<String?>(null) }
@@ -103,10 +105,16 @@ class MainActivity : ComponentActivity() {
             query = ""
             sheetFor = null
             showNowSet = false
+            pauseFor = null
         }
 
         fun launch(app: AppEntry) {
-            if (launcher.launch(app)) {
+            if (app.key in state.pausedKeys) {
+                // Paused apps get the breathing pause first.
+                pauseFor = app.key
+                sheetFor = null
+                screen = Screen.Pause
+            } else if (launcher.launch(app)) {
                 goHome()
             } else {
                 Toast.makeText(this, "That app could not be opened.", Toast.LENGTH_SHORT).show()
@@ -150,6 +158,10 @@ class MainActivity : ComponentActivity() {
             when (screen) {
                 Screen.Home -> Unit
                 Screen.CheckIn -> { dayModel.skipCheckIn(); goHome() }
+                Screen.Pause -> {
+                    state.allApps.firstOrNull { it.key == pauseFor }?.let(launcher::turnedBack)
+                    goHome()
+                }
                 else -> goHome()
             }
         }
@@ -195,6 +207,7 @@ class MainActivity : ComponentActivity() {
                 )
                 Screen.Search -> SearchScreen(
                     apps = state.allApps,
+                    pausedKeys = state.pausedKeys,
                     query = query,
                     onQueryChange = { query = it },
                     onLaunch = ::launch,
@@ -205,6 +218,7 @@ class MainActivity : ComponentActivity() {
                     isDefaultHome = isDefaultHome,
                     bedtimeMin = currentDay?.bedtimeMin ?: TimeBarModel.DAY - 60,
                     calendarOn = currentDay?.calendarOn == true,
+                    pausedNames = state.pausedApps.map { it.label },
                     onPickBedtime = {
                         val current = currentDay?.bedtimeMin ?: (23 * 60)
                         TimePickerDialog(this@MainActivity, { _, h, m -> dayModel.setBedtime(h * 60 + m) }, current / 60, current % 60, true).show()
@@ -236,6 +250,31 @@ class MainActivity : ComponentActivity() {
                         onStartBreak = dayModel::startBreak,
                     )
                     // Otherwise the new task is still being saved; the timer appears a moment later.
+                }
+                Screen.Pause -> {
+                    val app = state.allApps.firstOrNull { it.key == pauseFor }
+                    if (app != null) {
+                        var openNumber by remember(app.key) { mutableStateOf<Int?>(null) }
+                        LaunchedEffect(app.key) { openNumber = launcher.opensToday(app) + 1 }
+                        val taskName = nowTask?.takeIf { it.phase == NowPhase.Task }?.title
+                            ?: todaysOneThing?.takeIf { !it.done }?.text
+                        PauseScreen(
+                            app = app,
+                            openNumber = openNumber,
+                            task = taskName,
+                            onBack = {
+                                launcher.turnedBack(app)
+                                goHome()
+                            },
+                            onOpenAnyway = {
+                                if (launcher.openAfterPause(app)) {
+                                    goHome()
+                                } else {
+                                    Toast.makeText(this@MainActivity, "That app could not be opened.", Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                        )
+                    }
                 }
                 Screen.CheckIn -> CheckInScreen(
                     now = nowMinute,
@@ -280,6 +319,9 @@ class MainActivity : ComponentActivity() {
                     homeIsFull = state.homeIsFull,
                     canMoveUp = index > 0,
                     canMoveDown = index in 0 until state.essentials.lastIndex,
+                    isPaused = sheetApp.key in state.pausedKeys,
+                    pauseIsFull = state.pauseIsFull,
+                    onSetPaused = { launcher.setPaused(sheetApp, it) },
                     onAdd = { launcher.addToHome(sheetApp) },
                     onRemove = { launcher.removeFromHome(sheetApp) },
                     onMoveUp = { launcher.moveOnHome(sheetApp, -1) },

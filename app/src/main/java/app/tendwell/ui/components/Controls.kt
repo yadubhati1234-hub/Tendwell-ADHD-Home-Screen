@@ -76,9 +76,10 @@ fun TwRow(
     icon: ImageVector? = null,
     supporting: String? = null,
     trailing: ImageVector? = null,
+    /** Dimmed when false. Info rows can pass true with no onClick. */
+    enabled: Boolean = onClick != null,
 ) {
     val c = Tendwell.colors
-    val enabled = onClick != null
     Row(
         modifier = modifier
             .fillMaxWidth()
