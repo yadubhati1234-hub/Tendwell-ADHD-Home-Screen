@@ -207,10 +207,10 @@ class MainActivity : ComponentActivity() {
                     calendarOn = currentDay?.calendarOn == true,
                     onPickBedtime = {
                         val current = currentDay?.bedtimeMin ?: (23 * 60)
-                        TimePickerDialog(this, { _, h, m -> dayModel.setBedtime(h * 60 + m) }, current / 60, current % 60, true).show()
+                        TimePickerDialog(this@MainActivity, { _, h, m -> dayModel.setBedtime(h * 60 + m) }, current / 60, current % 60, true).show()
                     },
                     onToggleCalendar = { on ->
-                        if (on && !CalendarReader.hasPermission(this)) {
+                        if (on && !CalendarReader.hasPermission(this@MainActivity)) {
                             calendarPermission.launch(Manifest.permission.READ_CALENDAR)
                         } else {
                             dayModel.setCalendarOn(on)
