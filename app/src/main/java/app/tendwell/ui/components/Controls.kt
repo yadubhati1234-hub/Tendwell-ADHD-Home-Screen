@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -26,6 +27,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import app.tendwell.ui.theme.Tendwell
 import app.tendwell.ui.theme.TendwellType
 
@@ -78,6 +80,8 @@ fun TwRow(
     trailing: ImageVector? = null,
     /** Dimmed when false. Info rows can pass true with no onClick. */
     enabled: Boolean = onClick != null,
+    /** Shows the small "Pro" badge after the label. */
+    proBadge: Boolean = false,
 ) {
     val c = Tendwell.colors
     Row(
@@ -93,7 +97,14 @@ fun TwRow(
             Icon(icon, contentDescription = null, tint = if (enabled) c.ink else c.ink3, modifier = Modifier.size(22.dp))
         }
         androidx.compose.foundation.layout.Column(Modifier.weight(1f)) {
-            Text(label, style = TendwellType.rowLabel, color = if (enabled) c.ink else c.ink3)
+            if (proBadge) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(label, style = TendwellType.rowLabel, color = if (enabled) c.ink else c.ink3)
+                    ProBadge()
+                }
+            } else {
+                Text(label, style = TendwellType.rowLabel, color = if (enabled) c.ink else c.ink3)
+            }
             if (supporting != null) {
                 Text(supporting, style = TendwellType.small, color = c.ink3)
             }
@@ -150,3 +161,19 @@ fun TwToggleRow(
 
 private fun Modifier.switchToggle(checked: Boolean, onCheckedChange: (Boolean) -> Unit): Modifier =
     this.toggleable(value = checked, role = Role.Switch, onValueChange = onCheckedChange)
+
+/** The small uppercase "Pro" badge in the time colour. */
+@Composable
+fun ProBadge(background: Color = Tendwell.colors.timeSoft) {
+    val c = Tendwell.colors
+    Box(
+        Modifier
+            .height(22.dp)
+            .clip(RoundedCornerShape(999.dp))
+            .background(background)
+            .padding(horizontal = 8.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text("PRO", style = TendwellType.eyebrow.copy(fontSize = 11.sp, letterSpacing = 0.8.sp), color = c.onTimeSoft)
+    }
+}

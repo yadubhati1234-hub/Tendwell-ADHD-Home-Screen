@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Status
 
-Scaffolded on 2026-11-02. Done: core launcher (HOME intent, Home, search, long-press actions, Settings), time bar, Now card with timer and break, daily check-in, pause screen, onboarding, and the Pro paywall with Play Billing. Still to come: focus hours, weekly insights (the paywall already lists both, so they must ship before a production release), Firebase and Room.
+Scaffolded on 2026-11-02. Done: core launcher (HOME intent, Home, search, long-press actions, Settings), time bar, Now card with timer and break, daily check-in, pause screen, onboarding, the Pro paywall with Play Billing, focus hours and weekly insights. Still to come: Firebase (Crashlytics and analytics). Room turned out not to be needed so far: settings live in DataStore and the open log is a small text file.
 
 ## What this is
 
@@ -45,6 +45,8 @@ Single Gradle module `:app`, package `app.tendwell` (debug builds use `app.tendw
 - `checkin/` is the daily "one thing" screen, shown the first time Home opens each day (only after onboarding is done).
 - `onboarding/` holds the 5 first-run steps (Welcome, Essentials, PauseApps, SetHome, then the paywall). `MainActivity` shows them until `Prefs.onboardingDone`; picks are saved as each step is left. SetHome asks for `RoleManager.ROLE_HOME` on Android 10+ and opens the Home settings below that. `PauseSuggestions` is the pure list of suggested time-sink packages (unit-tested).
 - `billing/BillingRepository` wraps Play Billing 8 (callback API). Products: subscription `tendwell_pro` with base plans `monthly` and `yearly` (each with a 7-day free-trial offer), and one-time `tendwell_pro_lifetime`. Pro is cached in `Prefs.isPro` and re-checked 1.5 s after Home resumes, at most every 6 hours. `PlanText` is the pure paywall copy (unit-tested); `PaywallScreen` shows Play's prices, never hard-coded ones.
+- `focus/FocusHours` is the pure focus-hours model (blocks with days, start/end that may cross midnight, and a 30 s, 1 min or 2 min pause), its saved form in `Prefs` (`focus_blocks`) and the status line; unit-tested. During an active block a Pro user's paused apps wait the block's pause instead of 10 s.
+- `insights/WeekInsights` turns the open log into Monday-to-Sunday stats (opens, turned back, per day, per time-of-day slot, per app, change from the week before); unit-tested. `InsightsScreen` can go back four weeks, which is what the 35-day log holds.
 - Pro lifts the 3-app pause limit. Without Pro only the first 3 saved paused apps apply (`effectivePaused`); the rest stay saved for when Pro comes back.
 - `home/`, `search/`, `settings/` hold the other screens; `search/AppSearch` is pure Kotlin (ranking, accent-insensitive matching, letter groups) and is unit-tested.
 - `ui/theme/` has the design tokens (`Tokens.kt`, copied from the design canvas's `tokens()`), the bundled variable fonts Fraunces and Plus Jakarta Sans (`res/font/`, OFL texts in `assets/licenses/`) and `TendwellType`. Use `Tendwell.colors` and `TendwellType`, not Material defaults. `ui/components/Icons.kt` has the spec's line icons.

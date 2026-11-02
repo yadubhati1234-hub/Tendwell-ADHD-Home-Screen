@@ -26,6 +26,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -39,10 +40,16 @@ import app.tendwell.billing.PaywallRoute
 import app.tendwell.checkin.CheckInPick
 import app.tendwell.checkin.CheckInScreen
 import app.tendwell.data.DayState
+import app.tendwell.data.Prefs
 import app.tendwell.day.DayViewModel
+import app.tendwell.focus.FocusHours
+import app.tendwell.focus.FocusHoursScreen
 import app.tendwell.home.HomeScreen
 import app.tendwell.home.LauncherViewModel
 import app.tendwell.home.rememberCurrentMinute
+import app.tendwell.insights.InsightsScreen
+import app.tendwell.insights.WeekInsights
+import app.tendwell.insights.WeekStats
 import app.tendwell.now.NowCard
 import app.tendwell.now.NowPhase
 import app.tendwell.now.NowSetSheet
@@ -65,8 +72,10 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.launch
 import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.ZoneId
 
-private enum class Screen { Home, Search, Settings, Timer, CheckIn, Pause, Paywall }
+private enum class Screen { Home, Search, Settings, Timer, CheckIn, Pause, Paywall, FocusHours, Insights }
 
 /** The launcher activity. It handles the HOME intent, so pressing Home always lands here. */
 class MainActivity : ComponentActivity() {
@@ -105,6 +114,7 @@ class MainActivity : ComponentActivity() {
         val events by dayModel.events.collectAsStateWithLifecycle()
         val nowMinute by rememberCurrentMinute()
         val onboardingDone by launcher.onboardingDone.collectAsStateWithLifecycle()
+        val focusBlocks by launcher.focusBlocks.collectAsStateWithLifecycle()
         val scope = rememberCoroutineScope()
 
         var screen by rememberSaveable { mutableStateOf(Screen.Home) }
@@ -124,6 +134,10 @@ class MainActivity : ComponentActivity() {
         var obEssentials by rememberSaveable { mutableStateOf<String?>(null) }
         var obPaused by rememberSaveable { mutableStateOf<String?>(null) }
         var obProFromPause by rememberSaveable { mutableStateOf(false) }
+        // Weekly insights: the Monday of the week shown (null = this week), and whether
+        // focus hours were opened from insights (so Back returns there).
+        var insightsWeek by rememberSaveable { mutableStateOf<String?>(null) }
+        var focusFromInsights by rememberSaveable { mutableStateOf(false) }
 
         fun goHome() {
             screen = Screen.Home
@@ -226,6 +240,8 @@ class MainActivity : ComponentActivity() {
                     goHome()
                 }
                 Screen.Paywall -> closePaywall()
+                Screen.FocusHours -> screen = if (focusFromInsights) Screen.Insights else Screen.Settings
+                Screen.Insights -> screen = Screen.Settings
                 else -> goHome()
             }
         }
@@ -336,6 +352,13 @@ class MainActivity : ComponentActivity() {
                     calendarOn = currentDay?.calendarOn == true,
                     pausedNames = state.pausedApps.map { it.label },
                     isPro = state.isPro,
+                    focusSummary = focusBlocks.filter { it.on }.let { on ->
+                        when (on.size) {
+                            0 -> null
+                            1 -> FocusHours.summary(on[0])
+                            else -> "${on.size} sets of focus hours on"
+                        }
+                    },
                     onPickBedtime = {
                         val current = currentDay?.bedtimeMin ?: (23 * 60)
                         TimePickerDialog(this@MainActivity, { _, h, m -> dayModel.setBedtime(h * 60 + m) }, current / 60, current % 60, true).show()
@@ -349,6 +372,14 @@ class MainActivity : ComponentActivity() {
                     },
                     onOpenHomeSettings = { startSafely(launcher.homeSettingsIntent()) },
                     onOpenPro = { openPaywall(Screen.Settings) },
+                    onOpenFocusHours = {
+                        focusFromInsights = false
+                        if (state.isPro) screen = Screen.FocusHours else openPaywall(Screen.Settings)
+                    },
+                    onOpenInsights = {
+                        insightsWeek = null
+                        if (state.isPro) screen = Screen.Insights else openPaywall(Screen.Settings)
+                    },
                     onManagePro = {
                         startSafely(Intent(Intent.ACTION_VIEW, Uri.parse(BillingRepository.manageSubscriptionUrl(packageName))))
                     },
@@ -379,7 +410,12 @@ class MainActivity : ComponentActivity() {
                         LaunchedEffect(app.key) { openNumber = launcher.opensToday(app) + 1 }
                         val taskName = nowTask?.takeIf { it.phase == NowPhase.Task }?.title
                             ?: todaysOneThing?.takeIf { !it.done }?.text
+                        val focus = remember(app.key) {
+                            if (state.isPro) FocusHours.activeAt(focusBlocks, LocalDateTime.now()) else null
+                        }
                         PauseScreen(
+                            seconds = focus?.pauseSeconds ?: Prefs.PAUSE_SECONDS,
+                            focusNote = focus?.let { "Focus hours until ${TimeBarModel.formatClock(it.endMin)}" },
                             app = app,
                             openNumber = openNumber,
                             task = taskName,
@@ -398,6 +434,39 @@ class MainActivity : ComponentActivity() {
                     }
                 }
                 Screen.Paywall -> PaywallRoute(tendwell.billing, step = null, onDone = ::closePaywall)
+                Screen.FocusHours -> FocusHoursScreen(
+                    blocks = focusBlocks,
+                    now = nowMinute,
+                    pausedNames = state.pausedApps.map { it.label },
+                    onChange = launcher::setFocusBlocks,
+                    onPickTime = { current, onPicked ->
+                        TimePickerDialog(this@MainActivity, { _, h, m -> onPicked(h * 60 + m) }, current / 60, current % 60, true).show()
+                    },
+                    onBack = { screen = if (focusFromInsights) Screen.Insights else Screen.Settings },
+                )
+                Screen.Insights -> {
+                    val thisWeek = WeekInsights.weekStart(today)
+                    val week = insightsWeek?.let { runCatching { LocalDate.parse(it) }.getOrNull() } ?: thisWeek
+                    val stats by produceState<WeekStats?>(null, week) {
+                        value = WeekInsights.stats(launcher.eventsForInsights(week), week, ZoneId.systemDefault())
+                    }
+                    InsightsScreen(
+                        weekStart = week,
+                        today = today,
+                        stats = stats,
+                        // The open log keeps 35 days: this week and the four before it.
+                        canGoBack = week > thisWeek.minusWeeks(4),
+                        canGoForward = week < thisWeek,
+                        appLabel = { key -> state.allApps.firstOrNull { it.key == key }?.label ?: key.substringBefore('/') },
+                        onPrevWeek = { insightsWeek = week.minusWeeks(1).toString() },
+                        onNextWeek = { insightsWeek = week.plusWeeks(1).toString() },
+                        onSetFocusHours = {
+                            focusFromInsights = true
+                            screen = Screen.FocusHours
+                        },
+                        onBack = { screen = Screen.Settings },
+                    )
+                }
                 Screen.CheckIn -> CheckInScreen(
                     now = nowMinute,
                     picks = checkInPicks(currentDay, today),

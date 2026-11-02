@@ -5,9 +5,12 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import app.tendwell.TendwellApp
 import app.tendwell.apps.AppEntry
+import app.tendwell.data.OpenEvent
 import app.tendwell.data.OpenLogFormat
 import app.tendwell.data.PauseOutcome
 import app.tendwell.data.Prefs
+import app.tendwell.focus.FocusBlock
+import app.tendwell.focus.FocusHours
 import java.time.LocalDate
 import java.time.ZoneId
 import kotlinx.coroutines.flow.SharingStarted
@@ -15,6 +18,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -59,6 +63,21 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
             isPro = pro,
         )
     }.stateIn(viewModelScope, SharingStarted.Eagerly, LauncherState())
+
+    /** Focus hours (Pro), decoded from Prefs; the defaults until the user changes them. */
+    val focusBlocks: StateFlow<List<FocusBlock>> = prefs.focusBlocksRaw
+        .map(FocusHours::decode)
+        .stateIn(viewModelScope, SharingStarted.Eagerly, FocusHours.defaults())
+
+    fun setFocusBlocks(blocks: List<FocusBlock>) {
+        viewModelScope.launch { prefs.setFocusBlocksRaw(FocusHours.encode(blocks)) }
+    }
+
+    /** Pause-screen events from the week before [weekStart] to now, for weekly insights. */
+    suspend fun eventsForInsights(weekStart: LocalDate): List<OpenEvent> {
+        val from = weekStart.minusDays(7).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        return openLog.eventsSince(from)
+    }
 
     /** Null until read from disk, so neither Home nor onboarding flashes up first. */
     val onboardingDone: StateFlow<Boolean?> = prefs.onboardingDone.stateIn(viewModelScope, SharingStarted.Eagerly, null)

@@ -54,10 +54,10 @@ import app.tendwell.onboarding.FeatureRow
 import app.tendwell.onboarding.OnboardingPage
 import app.tendwell.onboarding.OnboardingTitle
 import app.tendwell.onboarding.PrimaryPill
-import app.tendwell.onboarding.ProBadge
 import app.tendwell.onboarding.StepDots
 import app.tendwell.data.Prefs
 import app.tendwell.ui.components.TwIconButton
+import app.tendwell.ui.components.ProBadge
 import app.tendwell.ui.components.TwIcons
 import app.tendwell.ui.components.TwSecondaryButton
 import app.tendwell.ui.theme.Tendwell

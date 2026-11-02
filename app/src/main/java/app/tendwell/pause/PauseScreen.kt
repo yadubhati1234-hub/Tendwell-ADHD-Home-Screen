@@ -68,13 +68,17 @@ fun PauseScreen(
     task: String?,
     onBack: () -> Unit,
     onOpenAnyway: () -> Unit,
+    /** Usually 10; longer during focus hours. */
+    seconds: Int = Prefs.PAUSE_SECONDS,
+    /** "Focus hours until 17:00" while focus hours make the pause longer. */
+    focusNote: String? = null,
 ) {
     val c = Tendwell.colors
     val context = LocalContext.current
     val startedAt = rememberSaveable(app.key) { System.currentTimeMillis() }
     val now by rememberTicker(active = true, periodMs = 250L)
     val elapsedS = ((now - startedAt) / 1000).toInt().coerceAtLeast(0)
-    val left = (Prefs.PAUSE_SECONDS - elapsedS).coerceAtLeast(0)
+    val left = (seconds - elapsedS).coerceAtLeast(0)
     val done = left == 0
     val inhale = (elapsedS / 4) % 2 == 0
 
@@ -104,6 +108,17 @@ fun PauseScreen(
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Icon(TwIcons.Hourglass, null, tint = c.ink2, modifier = Modifier.size(20.dp))
                 Text(app.label, style = TendwellType.rowLabel.copy(fontSize = 18.sp, fontWeight = FontWeight.Bold), color = c.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            if (focusNote != null) {
+                Text(
+                    focusNote,
+                    style = TendwellType.caption.copy(fontWeight = FontWeight.Bold),
+                    color = c.onTimeSoft,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(999.dp))
+                        .background(c.timeSoft)
+                        .padding(horizontal = 12.dp, vertical = 5.dp),
+                )
             }
             if (openNumber != null) {
                 Text(

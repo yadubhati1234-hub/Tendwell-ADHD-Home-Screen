@@ -213,19 +213,3 @@ fun Footnote(text: String, modifier: Modifier = Modifier) {
         modifier = modifier.fillMaxWidth(),
     )
 }
-
-/** The small uppercase "Pro" badge in the time colour. */
-@Composable
-fun ProBadge(background: Color = Tendwell.colors.timeSoft) {
-    val c = Tendwell.colors
-    Box(
-        Modifier
-            .height(22.dp)
-            .clip(RoundedCornerShape(999.dp))
-            .background(background)
-            .padding(horizontal = 8.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text("PRO", style = TendwellType.eyebrow.copy(fontSize = 11.sp, letterSpacing = 0.8.sp), color = c.onTimeSoft)
-    }
-}
