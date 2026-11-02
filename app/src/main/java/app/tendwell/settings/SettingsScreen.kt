@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import app.tendwell.BuildConfigInfo
 import app.tendwell.ui.components.TwIconButton
 import app.tendwell.ui.components.TwIcons
+import app.tendwell.data.Prefs
 import app.tendwell.timebar.TimeBarModel
 import app.tendwell.ui.components.TwRow
 import app.tendwell.ui.components.TwToggleRow
@@ -36,9 +37,13 @@ fun SettingsScreen(
     isDefaultHome: Boolean,
     bedtimeMin: Int,
     calendarOn: Boolean,
+    pausedNames: List<String>,
+    isPro: Boolean,
     onPickBedtime: () -> Unit,
     onToggleCalendar: (Boolean) -> Unit,
     onOpenHomeSettings: () -> Unit,
+    onOpenPro: () -> Unit,
+    onManagePro: () -> Unit,
     onBack: () -> Unit,
 ) {
     val c = Tendwell.colors
@@ -81,6 +86,58 @@ fun SettingsScreen(
             )
         }
 
+        SectionLabel("Pause")
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .then(if (c.isDark) Modifier else Modifier.shadow(6.dp, cardShape, ambientColor = c.ink, spotColor = c.ink))
+                .clip(cardShape)
+                .background(c.surface)
+                .border(1.dp, c.cardLine, cardShape),
+        ) {
+            TwRow(
+                if (isPro) "Paused apps (${pausedNames.size})" else "Paused apps (${pausedNames.size} of ${Prefs.MAX_FREE_PAUSED})",
+                onClick = null,
+                enabled = true,
+                icon = TwIcons.Hourglass,
+                supporting = if (pausedNames.isEmpty()) {
+                    "None yet. Long-press an app in search to pause it."
+                } else {
+                    pausedNames.joinToString(", ") + ". Long-press one to stop pausing it."
+                },
+            )
+        }
+
+        SectionLabel("Pro")
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .then(if (c.isDark) Modifier else Modifier.shadow(6.dp, cardShape, ambientColor = c.ink, spotColor = c.ink))
+                .clip(cardShape)
+                .background(c.surface)
+                .border(1.dp, c.cardLine, cardShape),
+        ) {
+            if (isPro) {
+                TwRow("Tendwell Pro is on", onClick = null, enabled = true, icon = TwIcons.Sprout, supporting = "Thank you for supporting Tendwell")
+                HorizontalDivider(color = c.line)
+                TwRow(
+                    "Manage subscription",
+                    onClick = onManagePro,
+                    icon = TwIcons.Settings,
+                    supporting = "Change or cancel in Google Play",
+                    trailing = TwIcons.ChevronRight,
+                )
+            } else {
+                TwRow(
+                    "See Tendwell Pro",
+                    onClick = onOpenPro,
+                    icon = TwIcons.Sprout,
+                    supporting = "Pause more than ${Prefs.MAX_FREE_PAUSED} apps, focus hours and weekly insights",
+                    trailing = TwIcons.ChevronRight,
+                )
+            }
+        }
+
         SectionLabel("Home screen")
         Column(
             Modifier
@@ -108,7 +165,7 @@ fun SettingsScreen(
                 )
             }
             HorizontalDivider(color = c.line)
-            TwRow("Version", onClick = null, supporting = BuildConfigInfo.versionLabel)
+            TwRow("Version", onClick = null, enabled = true, supporting = BuildConfigInfo.versionLabel)
         }
         Text(
             "Designed for ADHD brains. Everything stays on your phone.",

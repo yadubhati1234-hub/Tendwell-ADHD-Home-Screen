@@ -55,7 +55,9 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import app.tendwell.apps.AppEntry
+import app.tendwell.data.Prefs
 import app.tendwell.ui.components.TwIconButton
 import app.tendwell.ui.components.TwIcons
 import app.tendwell.ui.components.TwSecondaryButton
@@ -71,6 +73,7 @@ import app.tendwell.ui.theme.TendwellType
 @Composable
 fun SearchScreen(
     apps: List<AppEntry>,
+    pausedKeys: Set<String>,
     query: String,
     onQueryChange: (String) -> Unit,
     onLaunch: (AppEntry) -> Unit,
@@ -180,7 +183,7 @@ fun SearchScreen(
         ) {
             if (querying) {
                 items(hits, key = { it.item.key }) { hit ->
-                    AppRow(hit, querying = true, onLaunch = onLaunch, onLongPress = onLongPress)
+                    AppRow(hit, querying = true, paused = hit.item.key in pausedKeys, onLaunch = onLaunch, onLongPress = onLongPress)
                 }
             } else {
                 AppSearch.groupByLetter(hits).forEachIndexed { index, group ->
@@ -195,12 +198,12 @@ fun SearchScreen(
                         )
                     }
                     items(group.hits, key = { it.item.key }) { hit ->
-                        AppRow(hit, querying = false, onLaunch = onLaunch, onLongPress = onLongPress)
+                        AppRow(hit, querying = false, paused = hit.item.key in pausedKeys, onLaunch = onLaunch, onLongPress = onLongPress)
                     }
                 }
                 item(key = "hint") {
                     Text(
-                        "Long-press an app to add it to Home.",
+                        "Long-press an app to add it to Home or pause it.",
                         style = TendwellType.caption,
                         color = c.ink3,
                         modifier = Modifier.fillMaxWidth().padding(top = 24.dp),
@@ -216,6 +219,7 @@ fun SearchScreen(
 private fun AppRow(
     hit: SearchHit<AppEntry>,
     querying: Boolean,
+    paused: Boolean,
     onLaunch: (AppEntry) -> Unit,
     onLongPress: (AppEntry) -> Unit,
 ) {
@@ -234,7 +238,11 @@ private fun AppRow(
             }
         }
     }
-    val description = if (app.isWorkProfile) "${app.label}, work profile" else app.label
+    val description = buildString {
+        append(app.label)
+        if (app.isWorkProfile) append(", work profile")
+        if (paused) append(", opens after a ${Prefs.PAUSE_SECONDS} second pause")
+    }
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -256,8 +264,21 @@ private fun AppRow(
             color = if (querying) c.ink2 else c.ink,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f, fill = false),
+            modifier = Modifier.weight(1f),
         )
+        if (paused) {
+            Row(
+                Modifier
+                    .clip(RoundedCornerShape(999.dp))
+                    .background(c.timeSoft)
+                    .padding(start = 8.dp, end = 10.dp, top = 5.dp, bottom = 5.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(5.dp),
+            ) {
+                Icon(TwIcons.Hourglass, null, tint = c.onTimeSoft, modifier = Modifier.size(14.dp))
+                Text("${Prefs.PAUSE_SECONDS} s pause", style = TendwellType.eyebrow.copy(fontWeight = FontWeight.Bold, letterSpacing = 0.sp), color = c.onTimeSoft)
+            }
+        }
         if (app.isWorkProfile) {
             Text(
                 "Work",

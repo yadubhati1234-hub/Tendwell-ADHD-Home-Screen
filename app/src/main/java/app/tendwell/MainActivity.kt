@@ -1,10 +1,12 @@
 package app.tendwell
 
 import android.Manifest
+import android.app.role.RoleManager
 import android.app.TimePickerDialog
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.graphics.Color
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.widget.Toast
@@ -16,12 +18,15 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -29,6 +34,8 @@ import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.tendwell.apps.AppEntry
+import app.tendwell.billing.BillingRepository
+import app.tendwell.billing.PaywallRoute
 import app.tendwell.checkin.CheckInPick
 import app.tendwell.checkin.CheckInScreen
 import app.tendwell.data.DayState
@@ -41,23 +48,32 @@ import app.tendwell.now.NowPhase
 import app.tendwell.now.NowSetSheet
 import app.tendwell.now.TimerAlarm
 import app.tendwell.now.TimerScreen
+import app.tendwell.onboarding.EssentialsStep
+import app.tendwell.onboarding.PauseAppsStep
+import app.tendwell.onboarding.SetHomeStep
+import app.tendwell.onboarding.WelcomeStep
+import app.tendwell.pause.PauseScreen
 import app.tendwell.search.SearchScreen
 import app.tendwell.settings.SettingsScreen
 import app.tendwell.timebar.CalendarReader
 import app.tendwell.timebar.TimeBarModel
 import app.tendwell.ui.components.AppActionsSheet
+import app.tendwell.ui.theme.Tendwell
 import app.tendwell.ui.theme.TendwellTheme
 import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.launch
 import java.time.LocalDate
 
-private enum class Screen { Home, Search, Settings, Timer, CheckIn }
+private enum class Screen { Home, Search, Settings, Timer, CheckIn, Pause, Paywall }
 
 /** The launcher activity. It handles the HOME intent, so pressing Home always lands here. */
 class MainActivity : ComponentActivity() {
 
     private val launcher: LauncherViewModel by viewModels()
     private val dayModel: DayViewModel by viewModels()
+    private val tendwell: TendwellApp get() = application as TendwellApp
 
     /** Fires when the Home button is pressed while Tendwell is already showing. */
     private val homePressed = MutableSharedFlow<Unit>(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
@@ -88,25 +104,52 @@ class MainActivity : ComponentActivity() {
         val day by dayModel.day.collectAsStateWithLifecycle()
         val events by dayModel.events.collectAsStateWithLifecycle()
         val nowMinute by rememberCurrentMinute()
+        val onboardingDone by launcher.onboardingDone.collectAsStateWithLifecycle()
+        val scope = rememberCoroutineScope()
 
         var screen by rememberSaveable { mutableStateOf(Screen.Home) }
         var query by rememberSaveable { mutableStateOf("") }
         var sheetFor by rememberSaveable { mutableStateOf<String?>(null) }
         var sheetOnHome by rememberSaveable { mutableStateOf(false) }
         var showNowSet by rememberSaveable { mutableStateOf(false) }
+        var pauseFor by rememberSaveable { mutableStateOf<String?>(null) }
         var isDefaultHome by remember { mutableStateOf(true) }
         // Check-in is offered once per day, the first time Home shows.
         var checkInOfferedOn by rememberSaveable { mutableStateOf<String?>(null) }
+        // Where Close on the paywall goes back to.
+        var paywallReturn by rememberSaveable { mutableStateOf(Screen.Home) }
+        // Onboarding: the step (1 to 5), the picks so far (newline-joined keys, null = not edited yet),
+        // and whether the paywall was opened from the pause step's Pro card.
+        var obStep by rememberSaveable { mutableIntStateOf(1) }
+        var obEssentials by rememberSaveable { mutableStateOf<String?>(null) }
+        var obPaused by rememberSaveable { mutableStateOf<String?>(null) }
+        var obProFromPause by rememberSaveable { mutableStateOf(false) }
 
         fun goHome() {
             screen = Screen.Home
             query = ""
             sheetFor = null
             showNowSet = false
+            pauseFor = null
+        }
+
+        fun openPaywall(from: Screen) {
+            paywallReturn = from
+            sheetFor = null
+            screen = Screen.Paywall
+        }
+
+        fun closePaywall() {
+            if (paywallReturn == Screen.Home) goHome() else screen = paywallReturn
         }
 
         fun launch(app: AppEntry) {
-            if (launcher.launch(app)) {
+            if (app.key in state.pausedKeys) {
+                // Paused apps get the breathing pause first.
+                pauseFor = app.key
+                sheetFor = null
+                screen = Screen.Pause
+            } else if (launcher.launch(app)) {
                 goHome()
             } else {
                 Toast.makeText(this, "That app could not be opened.", Toast.LENGTH_SHORT).show()
@@ -129,15 +172,36 @@ class MainActivity : ComponentActivity() {
         LifecycleResumeEffect(Unit) {
             isDefaultHome = launcher.isDefaultHome()
             dayModel.refreshCalendar()
-            onPauseOrDispose { }
+            // Re-check Pro a moment after Home is up, so billing never slows the first frame.
+            val refresh = scope.launch {
+                delay(1500)
+                tendwell.billing.refreshIfStale()
+            }
+            onPauseOrDispose { refresh.cancel() }
+        }
+
+        val homeRoleRequest = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+            isDefaultHome = launcher.isDefaultHome()
+            obStep = 5
+        }
+        fun requestHomeRole() {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                val roles = getSystemService(RoleManager::class.java)
+                if (roles != null && roles.isRoleAvailable(RoleManager.ROLE_HOME) && !roles.isRoleHeld(RoleManager.ROLE_HOME)) {
+                    homeRoleRequest.launch(roles.createRequestRoleIntent(RoleManager.ROLE_HOME))
+                    return
+                }
+            }
+            startSafely(launcher.homeSettingsIntent())
+            obStep = 5
         }
         // Refresh calendar events every hour while Home is open, and when the day setting changes.
         LaunchedEffect(nowMinute.hour, day?.calendarOn) { dayModel.refreshCalendar() }
 
         val currentDay: DayState? = day
         val today = nowMinute.toLocalDate()
-        LaunchedEffect(currentDay?.checkInDate, today, screen) {
-            if (currentDay != null && screen == Screen.Home && currentDay.checkInDate != today &&
+        LaunchedEffect(currentDay?.checkInDate, today, screen, onboardingDone) {
+            if (currentDay != null && onboardingDone == true && screen == Screen.Home && currentDay.checkInDate != today &&
                 checkInOfferedOn != today.toString()
             ) {
                 checkInOfferedOn = today.toString()
@@ -147,9 +211,21 @@ class MainActivity : ComponentActivity() {
 
         // On Home, Back does nothing: there is nowhere further back to go.
         BackHandler(enabled = true) {
+            if (onboardingDone != true) {
+                when {
+                    obProFromPause -> obProFromPause = false
+                    obStep > 1 -> obStep -= 1
+                }
+                return@BackHandler
+            }
             when (screen) {
                 Screen.Home -> Unit
                 Screen.CheckIn -> { dayModel.skipCheckIn(); goHome() }
+                Screen.Pause -> {
+                    state.allApps.firstOrNull { it.key == pauseFor }?.let(launcher::turnedBack)
+                    goHome()
+                }
+                Screen.Paywall -> closePaywall()
                 else -> goHome()
             }
         }
@@ -164,6 +240,58 @@ class MainActivity : ComponentActivity() {
         }
         val todaysOneThing = currentDay?.oneThing?.takeIf { it.date == today }
         val nowTask = currentDay?.now
+
+        when (onboardingDone) {
+            null -> {
+                // A few milliseconds while settings load from disk.
+                Box(Modifier.fillMaxSize().background(Tendwell.colors.bg))
+                return
+            }
+            false -> {
+                val essentialsSel = obEssentials?.split('\n')?.filter { it.isNotBlank() } ?: state.essentials.map { it.key }
+                val pausedSel = obPaused?.split('\n')?.filter { it.isNotBlank() } ?: state.pausedKeys.toList()
+                fun toggled(list: List<String>, key: String) = (if (key in list) list - key else list + key).joinToString("\n")
+                fun finish() {
+                    launcher.finishOnboarding()
+                    goHome()
+                }
+                when {
+                    obProFromPause -> PaywallRoute(tendwell.billing, step = null, onDone = { obProFromPause = false })
+                    obStep <= 1 -> WelcomeStep(onStart = { obStep = 2 })
+                    obStep == 2 -> EssentialsStep(
+                        apps = state.allApps,
+                        selected = essentialsSel,
+                        onToggle = { obEssentials = toggled(essentialsSel, it) },
+                        onBack = { obStep = 1 },
+                        onContinue = {
+                            launcher.saveEssentials(essentialsSel)
+                            obStep = 3
+                        },
+                    )
+                    obStep == 3 -> PauseAppsStep(
+                        apps = state.allApps,
+                        selected = pausedSel,
+                        isPro = state.isPro,
+                        onToggle = { obPaused = toggled(pausedSel, it) },
+                        onBack = { obStep = 2 },
+                        onContinue = {
+                            launcher.savePaused(pausedSel)
+                            obStep = 4
+                        },
+                        onSeePro = { obProFromPause = true },
+                    )
+                    obStep == 4 -> SetHomeStep(
+                        isDefaultHome = isDefaultHome,
+                        onBack = { obStep = 3 },
+                        onSetHome = ::requestHomeRole,
+                        onNext = { obStep = 5 },
+                    )
+                    else -> PaywallRoute(tendwell.billing, step = 5, onDone = ::finish)
+                }
+                return
+            }
+            true -> Unit
+        }
 
         Box(Modifier.fillMaxSize()) {
             when (screen) {
@@ -195,6 +323,7 @@ class MainActivity : ComponentActivity() {
                 )
                 Screen.Search -> SearchScreen(
                     apps = state.allApps,
+                    pausedKeys = state.pausedKeys,
                     query = query,
                     onQueryChange = { query = it },
                     onLaunch = ::launch,
@@ -205,6 +334,8 @@ class MainActivity : ComponentActivity() {
                     isDefaultHome = isDefaultHome,
                     bedtimeMin = currentDay?.bedtimeMin ?: TimeBarModel.DAY - 60,
                     calendarOn = currentDay?.calendarOn == true,
+                    pausedNames = state.pausedApps.map { it.label },
+                    isPro = state.isPro,
                     onPickBedtime = {
                         val current = currentDay?.bedtimeMin ?: (23 * 60)
                         TimePickerDialog(this@MainActivity, { _, h, m -> dayModel.setBedtime(h * 60 + m) }, current / 60, current % 60, true).show()
@@ -217,6 +348,10 @@ class MainActivity : ComponentActivity() {
                         }
                     },
                     onOpenHomeSettings = { startSafely(launcher.homeSettingsIntent()) },
+                    onOpenPro = { openPaywall(Screen.Settings) },
+                    onManagePro = {
+                        startSafely(Intent(Intent.ACTION_VIEW, Uri.parse(BillingRepository.manageSubscriptionUrl(packageName))))
+                    },
                     onBack = ::goHome,
                 )
                 Screen.Timer -> {
@@ -237,6 +372,32 @@ class MainActivity : ComponentActivity() {
                     )
                     // Otherwise the new task is still being saved; the timer appears a moment later.
                 }
+                Screen.Pause -> {
+                    val app = state.allApps.firstOrNull { it.key == pauseFor }
+                    if (app != null) {
+                        var openNumber by remember(app.key) { mutableStateOf<Int?>(null) }
+                        LaunchedEffect(app.key) { openNumber = launcher.opensToday(app) + 1 }
+                        val taskName = nowTask?.takeIf { it.phase == NowPhase.Task }?.title
+                            ?: todaysOneThing?.takeIf { !it.done }?.text
+                        PauseScreen(
+                            app = app,
+                            openNumber = openNumber,
+                            task = taskName,
+                            onBack = {
+                                launcher.turnedBack(app)
+                                goHome()
+                            },
+                            onOpenAnyway = {
+                                if (launcher.openAfterPause(app)) {
+                                    goHome()
+                                } else {
+                                    Toast.makeText(this@MainActivity, "That app could not be opened.", Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                        )
+                    }
+                }
+                Screen.Paywall -> PaywallRoute(tendwell.billing, step = null, onDone = ::closePaywall)
                 Screen.CheckIn -> CheckInScreen(
                     now = nowMinute,
                     picks = checkInPicks(currentDay, today),
@@ -280,6 +441,10 @@ class MainActivity : ComponentActivity() {
                     homeIsFull = state.homeIsFull,
                     canMoveUp = index > 0,
                     canMoveDown = index in 0 until state.essentials.lastIndex,
+                    isPaused = sheetApp.key in state.pausedKeys,
+                    pauseIsFull = state.pauseIsFull,
+                    onSetPaused = { launcher.setPaused(sheetApp, it) },
+                    onSeePro = { openPaywall(if (screen == Screen.Search) Screen.Search else Screen.Home) },
                     onAdd = { launcher.addToHome(sheetApp) },
                     onRemove = { launcher.removeFromHome(sheetApp) },
                     onMoveUp = { launcher.moveOnHome(sheetApp, -1) },

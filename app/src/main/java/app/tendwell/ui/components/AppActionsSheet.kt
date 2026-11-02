@@ -34,6 +34,10 @@ fun AppActionsSheet(
     homeIsFull: Boolean,
     canMoveUp: Boolean,
     canMoveDown: Boolean,
+    isPaused: Boolean,
+    pauseIsFull: Boolean,
+    onSetPaused: (Boolean) -> Unit,
+    onSeePro: () -> Unit,
     onAdd: () -> Unit,
     onRemove: () -> Unit,
     onMoveUp: () -> Unit,
@@ -81,6 +85,27 @@ fun AppActionsSheet(
                     else -> TwRow("Add to Home", onClick = { onAdd(); onDismiss() }, icon = TwIcons.Plus)
                 }
                 HorizontalDivider(Modifier.padding(horizontal = 16.dp), color = c.line)
+                when {
+                    isPaused -> TwRow(
+                        "Stop pausing",
+                        onClick = { onSetPaused(false); onDismiss() },
+                        icon = TwIcons.Hourglass,
+                        supporting = "Opens straight away again",
+                    )
+                    pauseIsFull -> TwRow(
+                        "Pause before opening",
+                        onClick = { onSeePro(); onDismiss() },
+                        icon = TwIcons.Hourglass,
+                        supporting = "Free covers ${Prefs.MAX_FREE_PAUSED} apps. Pause more with Pro.",
+                        trailing = TwIcons.ChevronRight,
+                    )
+                    else -> TwRow(
+                        "Pause before opening",
+                        onClick = { onSetPaused(true); onDismiss() },
+                        icon = TwIcons.Hourglass,
+                        supporting = "A ${Prefs.PAUSE_SECONDS}-second pause each time you open it",
+                    )
+                }
                 TwRow("App info", onClick = { onAppInfo(); onDismiss() }, icon = TwIcons.Info)
             }
         }
