@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Status
 
-Scaffolded on 2026-11-02. Done: core launcher (HOME intent, Home, search, long-press actions, Settings), time bar, Now card with timer and break, daily check-in. Still to come: pause screen, focus hours, insights, onboarding, billing, Firebase and Room.
+Scaffolded on 2026-11-02. Done: core launcher (HOME intent, Home, search, long-press actions, Settings), time bar, Now card with timer and break, daily check-in, pause screen, onboarding, and the Pro paywall with Play Billing. Still to come: focus hours, weekly insights (the paywall already lists both, so they must ship before a production release), Firebase and Room.
 
 ## What this is
 
@@ -42,7 +42,10 @@ Single Gradle module `:app`, package `app.tendwell` (debug builds use `app.tendw
 - `data/Prefs` also holds today's state (`DayState`): bedtime, calendar toggle, the one thing, last check-in date, recent tasks and the Now task. `day/DayViewModel` owns it.
 - `now/NowTask` is the pure timer model (pause, resume, +5 min, done, break) and is unit-tested. `now/TimerAlarm` schedules the end-of-timer nudge with `setAndAllowWhileIdle` (inexact, no exact-alarm permission). `POST_NOTIFICATIONS` is asked for when the first timer starts.
 - `timebar/TimeBarModel` is the pure maths and labels for the time bar (unit-tested, handles bedtimes after midnight); `timebar/CalendarReader` reads today's events only when the user turns calendar on in Settings (`READ_CALENDAR`).
-- `checkin/` is the daily "one thing" screen, shown the first time Home opens each day.
+- `checkin/` is the daily "one thing" screen, shown the first time Home opens each day (only after onboarding is done).
+- `onboarding/` holds the 5 first-run steps (Welcome, Essentials, PauseApps, SetHome, then the paywall). `MainActivity` shows them until `Prefs.onboardingDone`; picks are saved as each step is left. SetHome asks for `RoleManager.ROLE_HOME` on Android 10+ and opens the Home settings below that. `PauseSuggestions` is the pure list of suggested time-sink packages (unit-tested).
+- `billing/BillingRepository` wraps Play Billing 8 (callback API). Products: subscription `tendwell_pro` with base plans `monthly` and `yearly` (each with a 7-day free-trial offer), and one-time `tendwell_pro_lifetime`. Pro is cached in `Prefs.isPro` and re-checked 1.5 s after Home resumes, at most every 6 hours. `PlanText` is the pure paywall copy (unit-tested); `PaywallScreen` shows Play's prices, never hard-coded ones.
+- Pro lifts the 3-app pause limit. Without Pro only the first 3 saved paused apps apply (`effectivePaused`); the rest stay saved for when Pro comes back.
 - `home/`, `search/`, `settings/` hold the other screens; `search/AppSearch` is pure Kotlin (ranking, accent-insensitive matching, letter groups) and is unit-tested.
 - `ui/theme/` has the design tokens (`Tokens.kt`, copied from the design canvas's `tokens()`), the bundled variable fonts Fraunces and Plus Jakarta Sans (`res/font/`, OFL texts in `assets/licenses/`) and `TendwellType`. Use `Tendwell.colors` and `TendwellType`, not Material defaults. `ui/components/Icons.kt` has the spec's line icons.
 - The launcher icon is a placeholder (the spec's sprout icon on sage) until the real icon exists.

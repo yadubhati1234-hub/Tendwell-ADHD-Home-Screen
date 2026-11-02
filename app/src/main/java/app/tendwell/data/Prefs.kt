@@ -54,6 +54,23 @@ class Prefs(context: Context) {
         store.edit { it[PAUSED] = keys.joinToString("\n") }
     }
 
+    /**
+     * Whether this Google account owns Pro. Billing refreshes it on every start,
+     * so the cached value only bridges the moment before Play answers.
+     */
+    val isPro: Flow<Boolean> = store.data.map { it[IS_PRO] ?: false }
+
+    suspend fun setPro(on: Boolean) {
+        store.edit { it[IS_PRO] = on }
+    }
+
+    /** False until the user finishes (or skips through) onboarding. */
+    val onboardingDone: Flow<Boolean> = store.data.map { it[ONBOARDING_DONE] ?: false }
+
+    suspend fun setOnboardingDone() {
+        store.edit { it[ONBOARDING_DONE] = true }
+    }
+
     val day: Flow<DayState> = store.data.map { p ->
         DayState(
             bedtimeMin = p[BEDTIME] ?: DEFAULT_BEDTIME,
@@ -142,6 +159,8 @@ class Prefs(context: Context) {
 
         private val ESSENTIALS = stringPreferencesKey("essential_apps")
         private val PAUSED = stringPreferencesKey("paused_apps")
+        private val IS_PRO = booleanPreferencesKey("is_pro")
+        private val ONBOARDING_DONE = booleanPreferencesKey("onboarding_done")
         private val BEDTIME = intPreferencesKey("bedtime_min")
         private val DAY_START = intPreferencesKey("day_start_min")
         private val CALENDAR_ON = booleanPreferencesKey("calendar_on")

@@ -38,9 +38,12 @@ fun SettingsScreen(
     bedtimeMin: Int,
     calendarOn: Boolean,
     pausedNames: List<String>,
+    isPro: Boolean,
     onPickBedtime: () -> Unit,
     onToggleCalendar: (Boolean) -> Unit,
     onOpenHomeSettings: () -> Unit,
+    onOpenPro: () -> Unit,
+    onManagePro: () -> Unit,
     onBack: () -> Unit,
 ) {
     val c = Tendwell.colors
@@ -93,7 +96,7 @@ fun SettingsScreen(
                 .border(1.dp, c.cardLine, cardShape),
         ) {
             TwRow(
-                "Paused apps (${pausedNames.size} of ${Prefs.MAX_FREE_PAUSED})",
+                if (isPro) "Paused apps (${pausedNames.size})" else "Paused apps (${pausedNames.size} of ${Prefs.MAX_FREE_PAUSED})",
                 onClick = null,
                 enabled = true,
                 icon = TwIcons.Hourglass,
@@ -103,6 +106,36 @@ fun SettingsScreen(
                     pausedNames.joinToString(", ") + ". Long-press one to stop pausing it."
                 },
             )
+        }
+
+        SectionLabel("Pro")
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .then(if (c.isDark) Modifier else Modifier.shadow(6.dp, cardShape, ambientColor = c.ink, spotColor = c.ink))
+                .clip(cardShape)
+                .background(c.surface)
+                .border(1.dp, c.cardLine, cardShape),
+        ) {
+            if (isPro) {
+                TwRow("Tendwell Pro is on", onClick = null, enabled = true, icon = TwIcons.Sprout, supporting = "Thank you for supporting Tendwell")
+                HorizontalDivider(color = c.line)
+                TwRow(
+                    "Manage subscription",
+                    onClick = onManagePro,
+                    icon = TwIcons.Settings,
+                    supporting = "Change or cancel in Google Play",
+                    trailing = TwIcons.ChevronRight,
+                )
+            } else {
+                TwRow(
+                    "See Tendwell Pro",
+                    onClick = onOpenPro,
+                    icon = TwIcons.Sprout,
+                    supporting = "Pause more than ${Prefs.MAX_FREE_PAUSED} apps, focus hours and weekly insights",
+                    trailing = TwIcons.ChevronRight,
+                )
+            }
         }
 
         SectionLabel("Home screen")

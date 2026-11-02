@@ -37,6 +37,7 @@ fun AppActionsSheet(
     isPaused: Boolean,
     pauseIsFull: Boolean,
     onSetPaused: (Boolean) -> Unit,
+    onSeePro: () -> Unit,
     onAdd: () -> Unit,
     onRemove: () -> Unit,
     onMoveUp: () -> Unit,
@@ -93,9 +94,10 @@ fun AppActionsSheet(
                     )
                     pauseIsFull -> TwRow(
                         "Pause before opening",
-                        onClick = null,
+                        onClick = { onSeePro(); onDismiss() },
                         icon = TwIcons.Hourglass,
-                        supporting = "The free plan pauses up to ${Prefs.MAX_FREE_PAUSED} apps. Stop pausing one first.",
+                        supporting = "Free covers ${Prefs.MAX_FREE_PAUSED} apps. Pause more with Pro.",
+                        trailing = TwIcons.ChevronRight,
                     )
                     else -> TwRow(
                         "Pause before opening",
