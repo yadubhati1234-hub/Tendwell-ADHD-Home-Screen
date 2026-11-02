@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Status
 
-The repository has no code yet, only a README. When the Android project is scaffolded, update this file with the real module layout, commands and conventions, and remove anything below that turned out different.
+Scaffolded on 2026-11-02: the core launcher (HOME intent, Home screen, search over all apps, long-press actions, first Settings screen) is in place. Time bar, Now card, check-in, pause screen, onboarding, billing, Firebase and Room are still to come.
 
 ## What this is
 
@@ -32,6 +32,23 @@ Planned pieces: a local database (Room), Google Play Billing, Firebase Crashlyti
 - **Billing can only be tested on a build uploaded to a Play testing track** (internal testing is enough). Check out the test SKUs there; they don't work in a debug sideload.
 - **Anything collected on the device** (check-ins, usage, analytics, crash data) must match the Play Console Data safety form and the privacy policy. Update those whenever data collection changes.
 
+## Layout
+
+Single Gradle module `:app`, package `app.tendwell` (debug builds use `app.tendwell.debug` so they install next to a Play build). Versions live in `gradle/libs.versions.toml`.
+
+- `MainActivity` is the HOME activity and holds the tiny screen state (Home, Search, Settings) itself, with no navigation library, to keep cold start light. Pressing Home while Tendwell shows returns to Home.
+- `apps/AppRepository` lists launchable apps through `LauncherApps` (main and work profiles) and refreshes on install/remove. Package visibility comes from the `<queries>` block in the manifest, not `QUERY_ALL_PACKAGES`.
+- `data/Prefs` is a Preferences DataStore. Essential apps are saved as ordered keys `package/class#userSerial`, at most 7.
+- `home/`, `search/`, `settings/` hold the screens; `search/AppSearch` is pure Kotlin (ranking, accent-insensitive matching, letter groups) and is unit-tested.
+- `ui/theme/` has the design tokens (`Tokens.kt`, copied from the design canvas's `tokens()`), the bundled variable fonts Fraunces and Plus Jakarta Sans (`res/font/`, OFL texts in `assets/licenses/`) and `TendwellType`. Use `Tendwell.colors` and `TendwellType`, not Material defaults. `ui/components/Icons.kt` has the spec's line icons.
+- The launcher icon is a placeholder (the spec's sprout icon on sage) until the real icon exists.
+
 ## Commands
 
-Not available yet. Once the Gradle wrapper exists, the standard ones apply: `./gradlew assembleDebug`, `./gradlew installDebug`, `./gradlew lint`, `./gradlew test` (unit tests), `./gradlew connectedAndroidTest` (instrumented tests, needs a device or emulator), and `./gradlew test --tests "<fully.qualified.ClassName>"` to run a single test class. Replace this paragraph with the real commands and module names after scaffolding.
+- `./gradlew assembleDebug`, `./gradlew installDebug`
+- `./gradlew lintDebug`, `./gradlew testDebugUnitTest`, `./gradlew testDebugUnitTest --tests "app.tendwell.search.AppSearchTest"`
+- `./gradlew bundleRelease` builds the AAB for Play. It is signed when `TENDWELL_KEYSTORE_PATH`, `TENDWELL_KEYSTORE_PASSWORD`, `TENDWELL_KEY_ALIAS` and `TENDWELL_KEY_PASSWORD` are set, or when an untracked `keystore.properties` (storeFile, storePassword, keyAlias, keyPassword) exists; otherwise it is unsigned. `VERSION_CODE` sets the version code.
+
+CI (`.github/workflows/android.yml`) runs lint, unit tests, the debug APK and the release AAB on every push to `main` and `claude/**`, and uploads both as run artifacts. It signs the AAB with the upload key from the repository secrets `TENDWELL_UPLOAD_KEYSTORE_BASE64`, `TENDWELL_KEYSTORE_PASSWORD`, `TENDWELL_KEY_ALIAS`, `TENDWELL_KEY_PASSWORD`, and uses the run number as the version code.
+
+Claude's cloud sessions cannot download the Android SDK (dl.google.com is blocked there), so they rely on CI to compile and test.
