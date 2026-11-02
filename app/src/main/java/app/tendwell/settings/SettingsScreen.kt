@@ -39,10 +39,14 @@ fun SettingsScreen(
     calendarOn: Boolean,
     pausedNames: List<String>,
     isPro: Boolean,
+    /** Summary of the focus hours that are on, like "Weekdays · 9:00 → 17:00", or null. */
+    focusSummary: String?,
     onPickBedtime: () -> Unit,
     onToggleCalendar: (Boolean) -> Unit,
     onOpenHomeSettings: () -> Unit,
     onOpenPro: () -> Unit,
+    onOpenFocusHours: () -> Unit,
+    onOpenInsights: () -> Unit,
     onManagePro: () -> Unit,
     onBack: () -> Unit,
 ) {
@@ -105,6 +109,28 @@ fun SettingsScreen(
                 } else {
                     pausedNames.joinToString(", ") + ". Long-press one to stop pausing it."
                 },
+            )
+            HorizontalDivider(color = c.line)
+            TwRow(
+                "Focus hours",
+                onClick = onOpenFocusHours,
+                icon = TwIcons.Clock,
+                supporting = when {
+                    !isPro -> "Longer pauses while you work, like 9:00 \u2192 17:00"
+                    focusSummary != null -> focusSummary
+                    else -> "Off"
+                },
+                trailing = TwIcons.ChevronRight,
+                proBadge = true,
+            )
+            HorizontalDivider(color = c.line)
+            TwRow(
+                "Weekly insights",
+                onClick = onOpenInsights,
+                icon = TwIcons.Bars,
+                supporting = "Your opens and the times you drift",
+                trailing = TwIcons.ChevronRight,
+                proBadge = true,
             )
         }
 

@@ -64,6 +64,13 @@ class Prefs(context: Context) {
         store.edit { it[IS_PRO] = on }
     }
 
+    /** Focus hours (Pro). Raw saved form, decoded by FocusHours; null until first saved. */
+    val focusBlocksRaw: Flow<String?> = store.data.map { it[FOCUS_BLOCKS] }
+
+    suspend fun setFocusBlocksRaw(raw: String) {
+        store.edit { it[FOCUS_BLOCKS] = raw }
+    }
+
     /** False until the user finishes (or skips through) onboarding. */
     val onboardingDone: Flow<Boolean> = store.data.map { it[ONBOARDING_DONE] ?: false }
 
@@ -161,6 +168,7 @@ class Prefs(context: Context) {
         private val PAUSED = stringPreferencesKey("paused_apps")
         private val IS_PRO = booleanPreferencesKey("is_pro")
         private val ONBOARDING_DONE = booleanPreferencesKey("onboarding_done")
+        private val FOCUS_BLOCKS = stringPreferencesKey("focus_blocks")
         private val BEDTIME = intPreferencesKey("bedtime_min")
         private val DAY_START = intPreferencesKey("day_start_min")
         private val CALENDAR_ON = booleanPreferencesKey("calendar_on")

@@ -50,6 +50,7 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import app.tendwell.apps.AppEntry
 import app.tendwell.data.Prefs
+import app.tendwell.ui.components.ProBadge
 import app.tendwell.ui.components.TwIcons
 import app.tendwell.ui.theme.Tendwell
 import app.tendwell.ui.theme.TendwellType
