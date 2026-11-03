@@ -114,6 +114,7 @@ fun HomeScreen(
         contentAlignment = Alignment.TopCenter,
     ) {
         if (isWide(maxWidth, maxHeight)) {
+            val clockStyle = if (maxHeight >= 520.dp) TendwellType.clock.copy(fontSize = 104.sp) else TendwellType.clock
             Row(
                 modifier = Modifier
                     .widthIn(max = WideMaxWidth)
@@ -126,7 +127,7 @@ fun HomeScreen(
                 // Each column centres itself and scrolls only if it doesn't fit.
                 Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
                     DateRow(now, onOpenSettings)
-                    BigClock(now, if (maxHeight >= 520.dp) TendwellType.clock.copy(fontSize = 104.sp) else TendwellType.clock)
+                    BigClock(now, clockStyle)
                     Box(Modifier.padding(top = 24.dp)) { nowCard() }
                 }
                 Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
