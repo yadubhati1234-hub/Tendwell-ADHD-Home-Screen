@@ -86,10 +86,11 @@ const val TERMS_URL = "https://yadubhati1234-hub.github.io/Tendwell-ADHD-Home-Sc
 /**
  * The Pro paywall wired to Google Play. [step] is 5 during onboarding (shows
  * the step dots) and null when opened from Settings or a pause limit.
- * [onDone] runs after Close, a purchase or a restore.
+ * [onDone] runs after Close, a purchase or a restore. [onShown] runs once each time the
+ * paywall opens (not again when the screen rotates), for analytics.
  */
 @Composable
-fun PaywallRoute(billing: BillingRepository, step: Int?, onDone: () -> Unit) {
+fun PaywallRoute(billing: BillingRepository, step: Int?, onDone: () -> Unit, onShown: () -> Unit = {}) {
     val activity = LocalActivity.current
     val context = LocalContext.current
     val store by billing.store.collectAsStateWithLifecycle()
@@ -98,7 +99,14 @@ fun PaywallRoute(billing: BillingRepository, step: Int?, onDone: () -> Unit) {
     var message by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
 
-    LaunchedEffect(Unit) { billing.loadOffers() }
+    var shownNoted by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        if (!shownNoted) {
+            shownNoted = true
+            onShown()
+        }
+        billing.loadOffers()
+    }
     LaunchedEffect(event) {
         val e = event ?: return@LaunchedEffect
         billing.consumeEvent()

@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "626987779828",
+    "project_id": "tendwell-198a7",
+    "storage_bucket": "tendwell-198a7.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:626987779828:android:ebf0dc0405043b0bfa00a1",
+        "android_client_info": {
+          "package_name": "app.tendwell"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDkklqcmtJcbrL_5eVge9Bgr7TLPw_C7gY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:626987779828:android:d7d9715b747528a5fa00a1",
+        "android_client_info": {
+          "package_name": "app.tendwell.debug"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDkklqcmtJcbrL_5eVge9Bgr7TLPw_C7gY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

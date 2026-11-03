@@ -35,7 +35,7 @@ import java.io.FileOutputStream
 /**
  * Walks a fresh install through every main screen on a real emulator, the way
  * a new user would: onboarding, the check-in, Home, a Now task with its
- * timer and break, search, the long-press sheet, the pause, Settings, the
+ * timer and break, search, the long-press sheet, the pause, Settings (with its privacy rows), the
  * paywall, and (with Pro switched on) weekly insights and focus hours.
  *
  * Any crash fails the test. Each step also saves a screenshot, which CI
@@ -185,6 +185,10 @@ class SmokeTest {
         snap("paywall")
         clickDescription("Not now")
         waitForText("Bedtime")
+        // The privacy rows at the bottom. Debug builds send nothing, so the copy shows a toast instead.
+        compose.onAllNodes(hasText("Copy analytics ID")).onFirst().performScrollTo().performClick()
+        Thread.sleep(1_000)
+        snap("settings-privacy")
 
         // 13. Pro screens, with Pro switched on the way an access code does it.
         runBlocking { Prefs(instrumentation.targetContext).setAccessCodePro() }

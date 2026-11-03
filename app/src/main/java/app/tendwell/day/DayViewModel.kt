@@ -23,6 +23,7 @@ import java.time.LocalDate
 /** Today's state: the time bar's settings and events, the one thing, and the Now task with its timer. */
 class DayViewModel(app: Application) : AndroidViewModel(app) {
     private val prefs = (app as TendwellApp).prefs
+    private val analytics = (app as TendwellApp).analytics
 
     /** Null until the first read from disk, so Home never flashes a wrong check-in. */
     val day: StateFlow<DayState?> = prefs.day.stateIn(viewModelScope, SharingStarted.Eagerly, null)
@@ -55,9 +56,13 @@ class DayViewModel(app: Application) : AndroidViewModel(app) {
     fun setOneThing(text: String) {
         if (text.isBlank()) return
         viewModelScope.launch { prefs.setOneThing(text, LocalDate.now()) }
+        analytics.checkInSet()
     }
 
-    fun skipCheckIn() { viewModelScope.launch { prefs.skipCheckIn(LocalDate.now()) } }
+    fun skipCheckIn() {
+        viewModelScope.launch { prefs.skipCheckIn(LocalDate.now()) }
+        analytics.checkInSkipped()
+    }
 
     fun setOneThingDone(done: Boolean) { viewModelScope.launch { prefs.setOneThingDone(done) } }
 
@@ -82,14 +87,19 @@ class DayViewModel(app: Application) : AndroidViewModel(app) {
     fun startNow(title: String, minutes: Int) {
         if (title.isBlank()) return
         updateNow { NowTask.start(title, minutes, clock()) }
+        analytics.nowStarted(minutes)
     }
 
     fun saveNowWithoutTimer(title: String) {
         if (title.isBlank()) return
         updateNow { NowTask.withoutTimer(title) }
+        analytics.nowSavedWithoutTimer()
     }
 
-    fun startTimerOnCurrent(minutes: Int) = updateNow { it?.startTimer(clock(), minutes) }
+    fun startTimerOnCurrent(minutes: Int) {
+        updateNow { it?.startTimer(clock(), minutes) }
+        analytics.nowStarted(minutes)
+    }
 
     fun pauseNow() = updateNow { it?.pause(clock()) }
 
@@ -100,12 +110,15 @@ class DayViewModel(app: Application) : AndroidViewModel(app) {
     /** Done on a task shows the celebration; done on a break clears the Now card. */
     fun completeNow() = updateNow { task ->
         when (task?.phase) {
-            NowPhase.Task -> task.complete(clock())
+            NowPhase.Task -> task.complete(clock()).also { analytics.nowDone() }
             else -> null
         }
     }
 
-    fun startBreak() = updateNow { it?.startBreak(clock()) }
+    fun startBreak() {
+        updateNow { it?.startBreak(clock()) }
+        analytics.breakStarted()
+    }
 
     fun clearNow() = updateNow { null }
 }

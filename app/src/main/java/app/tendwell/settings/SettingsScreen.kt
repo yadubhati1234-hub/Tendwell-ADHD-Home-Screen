@@ -48,6 +48,8 @@ fun SettingsScreen(
     onOpenFocusHours: () -> Unit,
     onOpenInsights: () -> Unit,
     onManagePro: () -> Unit,
+    onOpenPrivacy: () -> Unit,
+    onCopyAnalyticsId: () -> Unit,
     onBack: () -> Unit,
 ) {
     val c = Tendwell.colors
@@ -193,8 +195,34 @@ fun SettingsScreen(
             HorizontalDivider(color = c.line)
             TwRow("Version", onClick = null, enabled = true, supporting = BuildConfigInfo.versionLabel)
         }
+
+        SectionLabel("Privacy")
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .then(if (c.isDark) Modifier else Modifier.shadow(6.dp, cardShape, ambientColor = c.ink, spotColor = c.ink))
+                .clip(cardShape)
+                .background(c.surface)
+                .border(1.dp, c.cardLine, cardShape),
+        ) {
+            TwRow(
+                "Privacy policy",
+                onClick = onOpenPrivacy,
+                icon = TwIcons.Shield,
+                supporting = "What Tendwell sends and what stays here",
+                trailing = TwIcons.ChevronRight,
+            )
+            HorizontalDivider(color = c.line)
+            // The delete-data page (docs/delete-data) points people to this row by name.
+            TwRow(
+                "Copy analytics ID",
+                onClick = onCopyAnalyticsId,
+                icon = TwIcons.Info,
+                supporting = "Send it to us to have your crash reports and usage stats deleted",
+            )
+        }
         Text(
-            "Designed for ADHD brains. Everything stays on your phone.",
+            "Designed for ADHD brains. Your tasks, check-ins and app lists stay on your phone.",
             style = TendwellType.caption,
             color = c.ink3,
         )

@@ -4,6 +4,8 @@ import android.Manifest
 import android.app.role.RoleManager
 import android.app.TimePickerDialog
 import android.content.ActivityNotFoundException
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Intent
 import android.graphics.Color
 import android.net.Uri
@@ -37,8 +39,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import app.tendwell.analytics.PaywallFrom
 import app.tendwell.apps.AppEntry
 import app.tendwell.billing.BillingRepository
+import app.tendwell.billing.PRIVACY_URL
 import app.tendwell.billing.PaywallRoute
 import app.tendwell.checkin.CheckInPick
 import app.tendwell.checkin.CheckInScreen
@@ -130,8 +134,9 @@ class MainActivity : ComponentActivity() {
         var isDefaultHome by remember { mutableStateOf(true) }
         // Check-in is offered once per day, the first time Home shows.
         var checkInOfferedOn by rememberSaveable { mutableStateOf<String?>(null) }
-        // Where Close on the paywall goes back to.
+        // Where Close on the paywall goes back to, and what opened it (for analytics).
         var paywallReturn by rememberSaveable { mutableStateOf(Screen.Home) }
+        var paywallSource by rememberSaveable { mutableStateOf(PaywallFrom.Settings) }
         // Onboarding: the step (1 to 5), the picks so far (newline-joined keys, null = not edited yet),
         // and whether the paywall was opened from the pause step's Pro card.
         var obStep by rememberSaveable { mutableIntStateOf(1) }
@@ -151,8 +156,9 @@ class MainActivity : ComponentActivity() {
             pauseFor = null
         }
 
-        fun openPaywall(from: Screen) {
+        fun openPaywall(from: Screen, source: PaywallFrom) {
             paywallReturn = from
+            paywallSource = source
             sheetFor = null
             screen = Screen.Paywall
         }
@@ -164,6 +170,8 @@ class MainActivity : ComponentActivity() {
         fun launch(app: AppEntry) {
             if (app.key in state.pausedKeys) {
                 // Paused apps get the breathing pause first.
+                val focus = if (state.isPro) FocusHours.activeAt(focusBlocks, LocalDateTime.now()) else null
+                tendwell.analytics.pauseShown(focus?.pauseSeconds ?: Prefs.PAUSE_SECONDS)
                 pauseFor = app.key
                 sheetFor = null
                 screen = Screen.Pause
@@ -194,6 +202,7 @@ class MainActivity : ComponentActivity() {
             val refresh = scope.launch {
                 delay(1500)
                 tendwell.billing.refreshIfStale()
+                tendwell.analytics.linkCrashReports()
             }
             onPauseOrDispose { refresh.cancel() }
         }
@@ -288,7 +297,12 @@ class MainActivity : ComponentActivity() {
                 // On tablets the one-column onboarding stays at a readable width.
                 CenteredPage {
                     when {
-                        obProFromPause -> PaywallRoute(tendwell.billing, step = null, onDone = { obProFromPause = false })
+                        obProFromPause -> PaywallRoute(
+                            tendwell.billing,
+                            step = null,
+                            onDone = { obProFromPause = false },
+                            onShown = { tendwell.analytics.paywallShown(PaywallFrom.PauseAppsStep) },
+                        )
                         obStep <= 1 -> WelcomeStep(onStart = { obStep = 2 })
                         obStep == 2 -> EssentialsStep(
                             apps = state.allApps,
@@ -318,7 +332,12 @@ class MainActivity : ComponentActivity() {
                             onSetHome = ::requestHomeRole,
                             onNext = { obStep = 5 },
                         )
-                        else -> PaywallRoute(tendwell.billing, step = 5, onDone = ::finish)
+                        else -> PaywallRoute(
+                            tendwell.billing,
+                            step = 5,
+                            onDone = ::finish,
+                            onShown = { tendwell.analytics.paywallShown(PaywallFrom.Onboarding) },
+                        )
                     }
                 }
                 return
@@ -391,18 +410,30 @@ class MainActivity : ComponentActivity() {
                             }
                         },
                         onOpenHomeSettings = { startSafely(launcher.homeSettingsIntent()) },
-                        onOpenPro = { openPaywall(Screen.Settings) },
+                        onOpenPro = { openPaywall(Screen.Settings, PaywallFrom.Settings) },
                         onOpenFocusHours = {
                             focusFromInsights = false
-                            if (state.isPro) screen = Screen.FocusHours else openPaywall(Screen.Settings)
+                            if (state.isPro) {
+                                tendwell.analytics.focusHoursOpened()
+                                screen = Screen.FocusHours
+                            } else {
+                                openPaywall(Screen.Settings, PaywallFrom.FocusHours)
+                            }
                         },
                         onOpenInsights = {
                             insightsWeek = null
-                            if (state.isPro) screen = Screen.Insights else openPaywall(Screen.Settings)
+                            if (state.isPro) {
+                                tendwell.analytics.insightsOpened()
+                                screen = Screen.Insights
+                            } else {
+                                openPaywall(Screen.Settings, PaywallFrom.Insights)
+                            }
                         },
                         onManagePro = {
                             startSafely(Intent(Intent.ACTION_VIEW, Uri.parse(BillingRepository.manageSubscriptionUrl(packageName))))
                         },
+                        onOpenPrivacy = { startSafely(Intent(Intent.ACTION_VIEW, Uri.parse(PRIVACY_URL))) },
+                        onCopyAnalyticsId = { scope.launch { copyAnalyticsId() } },
                         onBack = ::goHome,
                     )
                 }
@@ -454,7 +485,14 @@ class MainActivity : ComponentActivity() {
                         )
                     }
                 }
-                Screen.Paywall -> CenteredPage { PaywallRoute(tendwell.billing, step = null, onDone = ::closePaywall) }
+                Screen.Paywall -> CenteredPage {
+                    PaywallRoute(
+                        tendwell.billing,
+                        step = null,
+                        onDone = ::closePaywall,
+                        onShown = { tendwell.analytics.paywallShown(paywallSource) },
+                    )
+                }
                 Screen.FocusHours -> CenteredPage {
                     FocusHoursScreen(
                         blocks = focusBlocks,
@@ -485,6 +523,7 @@ class MainActivity : ComponentActivity() {
                         onNextWeek = { insightsWeek = week.plusWeeks(1).toString() },
                         onSetFocusHours = {
                             focusFromInsights = true
+                            tendwell.analytics.focusHoursOpened()
                             screen = Screen.FocusHours
                         },
                         onBack = { screen = Screen.Settings },
@@ -538,7 +577,7 @@ class MainActivity : ComponentActivity() {
                     isPaused = sheetApp.key in state.pausedKeys,
                     pauseIsFull = state.pauseIsFull,
                     onSetPaused = { launcher.setPaused(sheetApp, it) },
-                    onSeePro = { openPaywall(if (screen == Screen.Search) Screen.Search else Screen.Home) },
+                    onSeePro = { openPaywall(if (screen == Screen.Search) Screen.Search else Screen.Home, PaywallFrom.AppActions) },
                     onAdd = { launcher.addToHome(sheetApp) },
                     onRemove = { launcher.removeFromHome(sheetApp) },
                     onMoveUp = { launcher.moveOnHome(sheetApp, -1) },
@@ -564,6 +603,20 @@ class MainActivity : ComponentActivity() {
             if (picks.none { it.label.equals(t, ignoreCase = true) }) picks += CheckInPick(t)
         }
         return picks.take(4)
+    }
+
+    /** Copies the Firebase app instance ID, which people send to have their data deleted (docs/delete-data). */
+    private suspend fun copyAnalyticsId() {
+        val id = tendwell.analytics.appInstanceId()
+        if (id == null) {
+            Toast.makeText(this, "No analytics ID yet. Nothing has been sent from this phone.", Toast.LENGTH_LONG).show()
+            return
+        }
+        getSystemService(ClipboardManager::class.java)?.setPrimaryClip(ClipData.newPlainText("Tendwell analytics ID", id))
+        // Android 13 and later show their own "Copied" message.
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+            Toast.makeText(this, "Analytics ID copied", Toast.LENGTH_SHORT).show()
+        }
     }
 
     private fun startSafely(intent: Intent) {

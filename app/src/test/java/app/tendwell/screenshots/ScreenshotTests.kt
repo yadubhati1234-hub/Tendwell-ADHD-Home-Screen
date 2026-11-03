@@ -334,6 +334,8 @@ abstract class ScreenshotTests(private val device: String) {
             onOpenFocusHours = noop,
             onOpenInsights = noop,
             onManagePro = noop,
+            onOpenPrivacy = noop,
+            onCopyAnalyticsId = noop,
             onBack = noop,
         )
     }

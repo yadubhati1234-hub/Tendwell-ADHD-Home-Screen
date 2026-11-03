@@ -50,6 +50,7 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     private val prefs = (app as TendwellApp).prefs
 
     private val openLog = (app as TendwellApp).openLog
+    private val analytics = (app as TendwellApp).analytics
 
     val state: StateFlow<LauncherState> = combine(repo.apps, prefs.essentialKeys, prefs.pausedKeys, prefs.isPro) { apps, keys, paused, pro ->
         if (apps == null) return@combine LauncherState(isPro = pro)
@@ -99,12 +100,16 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     /** Opens a paused app after its pause and notes it. Returns false if it could not be started. */
     fun openAfterPause(app: AppEntry): Boolean {
         val ok = repo.launch(app)
-        if (ok) viewModelScope.launch { openLog.record(app.key, PauseOutcome.Opened) }
+        if (ok) {
+            viewModelScope.launch { openLog.record(app.key, PauseOutcome.Opened) }
+            analytics.pauseOpenedAnyway()
+        }
         return ok
     }
 
     fun turnedBack(app: AppEntry) {
         viewModelScope.launch { openLog.record(app.key, PauseOutcome.TurnedBack) }
+        analytics.pauseTurnedBack()
     }
 
     /** How many times this paused app has been opened today, before this time. */
@@ -145,6 +150,7 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
 
     fun finishOnboarding() {
         viewModelScope.launch { prefs.setOnboardingDone() }
+        analytics.onboardingDone()
     }
 
     fun openAppInfo(app: AppEntry) = repo.openAppInfo(app)
