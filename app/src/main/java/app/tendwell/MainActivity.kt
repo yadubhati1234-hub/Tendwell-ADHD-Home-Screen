@@ -220,6 +220,8 @@ class MainActivity : ComponentActivity() {
         val today = nowMinute.toLocalDate()
         // The keyboard from Search or the check-in can outlive its text field and cover the next
         // screen's buttons (seen on the pause screen), so it closes whenever the screen changes.
+        // The manifest's stateAlwaysHidden also stops Android reopening it when the window gets
+        // focus back, for example after a bottom sheet closes.
         val rootView = LocalView.current
         LaunchedEffect(screen) {
             if (screen != Screen.Search) {
