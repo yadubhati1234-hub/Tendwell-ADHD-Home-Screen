@@ -225,8 +225,8 @@ private fun TimerDial(task: NowTask, now: Long, size: Dp) {
             .clearAndSetSemantics {
                 contentDescription = when {
                     up -> if (isBreak) "Break's over" else "Time's up"
-                    task.running -> "${secs / 60} minutes ${secs % 60} seconds left of $totalMin minutes"
-                    else -> "Paused, ${secs / 60} minutes left"
+                    task.running -> "${count(secs / 60, "minute")} ${count(secs % 60, "second")} left of ${count(totalMin.toLong(), "minute")}"
+                    else -> "Paused, ${count(secs / 60, "minute")} left"
                 }
                 liveRegion = LiveRegionMode.Polite
             },
@@ -315,7 +315,14 @@ private fun TimerInfo(task: NowTask, now: Long, nextEvent: DayEvent?, modifier: 
             InfoLine(TwIcons.Sprout, "Step away from the screen. Back to it at ${clockAt(task.projectedEndMs(now))}.")
         } else {
             nextEvent?.let { InfoLine(TwIcons.Calendar, "Next: ${it.title} at ${TimeBarModel.formatClock(it.startMin)}") }
-            InfoLine(TwIcons.Bell, "A gentle nudge at ${clockAt(task.projectedEndMs(now))}")
+            InfoLine(
+                TwIcons.Bell,
+                when {
+                    task.timeIsUp(now) -> "Time was up at ${clockAt(task.endAtMs)}"
+                    !task.running -> "No nudge while the timer is paused"
+                    else -> "A gentle nudge at ${clockAt(task.projectedEndMs(now))}"
+                },
+            )
         }
     }
 }
@@ -352,7 +359,7 @@ private fun DoneText(task: NowTask, nextEvent: DayEvent?) {
         modifier = Modifier.semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Polite },
     ) {
         Text("Done. That counts.", style = TendwellType.h1, color = c.ink, textAlign = TextAlign.Center)
-        val line = if (task.spentMinutes > 0) "${task.spentMinutes} minutes on ${task.title}." else "${task.title}: done."
+        val line = if (task.spentMinutes > 0) "${count(task.spentMinutes.toLong(), "minute")} on ${task.title}." else "${task.title}: done."
         Text(line, style = TendwellType.body, color = c.ink2, textAlign = TextAlign.Center)
         nextEvent?.let {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -452,3 +459,6 @@ private fun InfoLine(icon: ImageVector, text: String) {
         Text(text, style = TendwellType.small.copy(fontWeight = FontWeight.SemiBold), color = c.ink)
     }
 }
+
+/** "1 minute", "2 minutes". */
+private fun count(n: Long, word: String) = if (n == 1L) "1 $word" else "$n ${word}s"

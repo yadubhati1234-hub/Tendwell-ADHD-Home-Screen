@@ -29,6 +29,7 @@ android {
         // CI passes the run number so every uploaded build has a higher code.
         versionCode = (System.getenv("VERSION_CODE") ?: "1").toInt()
         versionName = "0.1.0"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     signingConfigs {
@@ -69,6 +70,19 @@ android {
         abortOnError = true
         checkReleaseBuilds = true
     }
+
+    testOptions {
+        unitTests {
+            // Robolectric needs the merged resources and fonts for the screenshot tests.
+            isIncludeAndroidResources = true
+            all {
+                // The screenshot tests always write their images (to app/build/outputs/roborazzi);
+                // nothing compares them, they are there to be looked at.
+                it.systemProperty("roborazzi.test.record", "true")
+                it.maxHeapSize = "2g"
+            }
+        }
+    }
 }
 
 kotlin {
@@ -92,4 +106,24 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.tooling)
 
     testImplementation(libs.junit)
+
+    // Screenshot tests: Robolectric draws each screen on the JVM and Roborazzi saves it as a PNG.
+    testImplementation(platform(libs.androidx.compose.bom))
+    testImplementation(libs.androidx.compose.ui.test.junit4)
+    testImplementation(libs.androidx.test.core)
+    testImplementation(libs.androidx.test.ext.junit)
+    testImplementation(libs.robolectric)
+    testImplementation(libs.roborazzi)
+    testImplementation(libs.roborazzi.compose)
+    // Declares the empty activity that createComposeRule() starts. Debug builds only.
+    debugImplementation(libs.androidx.compose.ui.test.manifest)
+
+    // The emulator smoke test (app/src/androidTest).
+    androidTestImplementation(platform(libs.androidx.compose.bom))
+    androidTestImplementation(libs.androidx.compose.ui.test.junit4)
+    androidTestImplementation(libs.androidx.test.core)
+    androidTestImplementation(libs.androidx.test.runner)
+    androidTestImplementation(libs.androidx.test.rules)
+    androidTestImplementation(libs.androidx.test.ext.junit)
+    androidTestImplementation(libs.androidx.test.espresso.core)
 }
