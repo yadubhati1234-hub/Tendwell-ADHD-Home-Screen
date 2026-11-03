@@ -63,7 +63,7 @@ fun WelcomeStep(onStart: () -> Unit) {
         Spacer(Modifier.weight(1f))
         Column(Modifier.padding(top = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             PrimaryPill("Get started", onClick = onStart, trailing = TwIcons.ArrowRight)
-            Footnote("Takes about 2 minutes. Everything stays on your phone.")
+            Footnote("Takes about 2 minutes. No account needed.")
         }
     }
 }
@@ -86,7 +86,7 @@ fun SetHomeStep(isDefaultHome: Boolean, onBack: () -> Unit, onSetHome: () -> Uni
         }
         Column(Modifier.padding(top = 24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             FeatureRow(TwIcons.Undo, c.mint, "Switch back any time", "Settings has a one-tap way back to your old launcher.")
-            FeatureRow(TwIcons.Shield, c.sky, "Nothing leaves your phone", "No account, no tracking of what you do in apps.")
+            FeatureRow(TwIcons.Shield, c.sky, "Your day stays on your phone", "No account. Your tasks and app names are never sent anywhere.")
         }
         Spacer(Modifier.weight(1f))
         Column(Modifier.padding(top = 16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
