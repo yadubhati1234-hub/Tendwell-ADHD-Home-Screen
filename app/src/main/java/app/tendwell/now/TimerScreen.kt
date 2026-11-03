@@ -225,7 +225,7 @@ private fun TimerDial(task: NowTask, now: Long, size: Dp) {
             .clearAndSetSemantics {
                 contentDescription = when {
                     up -> if (isBreak) "Break's over" else "Time's up"
-                    task.running -> "${count(secs / 60, "minute")} ${count(secs % 60, "second")} left of ${count(totalMin, "minute")}"
+                    task.running -> "${count(secs / 60, "minute")} ${count(secs % 60, "second")} left of ${count(totalMin.toLong(), "minute")}"
                     else -> "Paused, ${count(secs / 60, "minute")} left"
                 }
                 liveRegion = LiveRegionMode.Polite
@@ -359,7 +359,7 @@ private fun DoneText(task: NowTask, nextEvent: DayEvent?) {
         modifier = Modifier.semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Polite },
     ) {
         Text("Done. That counts.", style = TendwellType.h1, color = c.ink, textAlign = TextAlign.Center)
-        val line = if (task.spentMinutes > 0) "${count(task.spentMinutes, "minute")} on ${task.title}." else "${task.title}: done."
+        val line = if (task.spentMinutes > 0) "${count(task.spentMinutes.toLong(), "minute")} on ${task.title}." else "${task.title}: done."
         Text(line, style = TendwellType.body, color = c.ink2, textAlign = TextAlign.Center)
         nextEvent?.let {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -461,4 +461,4 @@ private fun InfoLine(icon: ImageVector, text: String) {
 }
 
 /** "1 minute", "2 minutes". */
-private fun count(n: Int, word: String) = if (n == 1) "1 $word" else "$n ${word}s"
+private fun count(n: Long, word: String) = if (n == 1L) "1 $word" else "$n ${word}s"
