@@ -1,6 +1,7 @@
 [versions]
 agp = "8.13.0"
-kotlin = "2.2.20"
+# Kotlin 2.3 or later: Firebase BoM 35 ships Kotlin 2.4 metadata, which 2.2 cannot read.
+kotlin = "2.3.21"
 composeBom = "2025.09.00"
 coreKtx = "1.17.0"
 activityCompose = "1.11.0"
