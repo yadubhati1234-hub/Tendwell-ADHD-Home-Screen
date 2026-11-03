@@ -70,18 +70,20 @@ abstract class ScreenshotTests(private val device: String) {
     private val options = RoborazziOptions(recordOptions = RoborazziOptions.RecordOptions(resizeScale = 0.5))
 
     /**
-     * Shows [content] and saves it in light and then dark. [settleMs] stops the
-     * test clock and moves it on by that much instead, for screens that count
-     * down. [wholeScreen] also captures dialogs and bottom sheets.
+     * Shows [content] and saves it in light and then dark. [settleMs] is for
+     * the pause, whose countdown runs on the wall clock: the test waits that
+     * long for real, then lets the screen tick once. [wholeScreen] also
+     * captures dialogs and bottom sheets.
      */
     @OptIn(ExperimentalRoborazziApi::class)
     private fun shoot(name: String, settleMs: Long? = null, wholeScreen: Boolean = false, content: @Composable () -> Unit) {
         var dark by mutableStateOf(false)
         if (settleMs != null) compose.mainClock.autoAdvance = false
         compose.setContent { TendwellTheme(dark = dark) { content() } }
+        if (settleMs != null) Thread.sleep(settleMs)
         for (isDark in listOf(false, true)) {
             dark = isDark
-            if (settleMs != null) compose.mainClock.advanceTimeBy(if (isDark) 32 else settleMs) else compose.waitForIdle()
+            if (settleMs != null) compose.mainClock.advanceTimeBy(500) else compose.waitForIdle()
             val path = "build/outputs/roborazzi/$device-${if (isDark) "dark" else "light"}/$name.png"
             if (wholeScreen) captureScreenRoboImage(path, options) else compose.onRoot().captureRoboImage(path, options)
         }

@@ -315,7 +315,14 @@ private fun TimerInfo(task: NowTask, now: Long, nextEvent: DayEvent?, modifier: 
             InfoLine(TwIcons.Sprout, "Step away from the screen. Back to it at ${clockAt(task.projectedEndMs(now))}.")
         } else {
             nextEvent?.let { InfoLine(TwIcons.Calendar, "Next: ${it.title} at ${TimeBarModel.formatClock(it.startMin)}") }
-            InfoLine(TwIcons.Bell, "A gentle nudge at ${clockAt(task.projectedEndMs(now))}")
+            InfoLine(
+                TwIcons.Bell,
+                when {
+                    task.timeIsUp(now) -> "Time was up at ${clockAt(task.endAtMs)}"
+                    !task.running -> "No nudge while the timer is paused"
+                    else -> "A gentle nudge at ${clockAt(task.projectedEndMs(now))}"
+                },
+            )
         }
     }
 }

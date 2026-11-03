@@ -3,10 +3,12 @@ package app.tendwell
 import android.Manifest
 import android.graphics.Bitmap
 import android.os.Build
+import android.os.ParcelFileDescriptor
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isRoot
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.longClick
 import androidx.compose.ui.test.onFirst
@@ -14,6 +16,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.printToLog
 import androidx.test.espresso.Espresso
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -22,6 +25,7 @@ import app.tendwell.data.Prefs
 import kotlinx.coroutines.runBlocking
 import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.ExternalResource
 import org.junit.rules.RuleChain
 import org.junit.rules.TestRule
 import org.junit.runner.RunWith
@@ -39,6 +43,10 @@ import java.io.FileOutputStream
  *
  * The emulator has no Play Store, so the paywall is expected to say Google
  * Play is unavailable; buying is tested by hand on a phone.
+ *
+ * The walk runs with animations on, like most phones. At the end it turns
+ * them off (Android's "Remove animations", which many people with ADHD use)
+ * and checks the bottom sheets still open.
  */
 @RunWith(AndroidJUnit4::class)
 class SmokeTest {
@@ -54,6 +62,10 @@ class SmokeTest {
                 TestRule { base, _ -> base }
             },
         )
+        // CI starts the emulator with animations off; most phones have them on.
+        .around(object : ExternalResource() {
+            override fun before() = setAnimations(true)
+        })
         .around(compose)
 
     private val instrumentation get() = InstrumentationRegistry.getInstrumentation()
@@ -61,8 +73,9 @@ class SmokeTest {
 
     @Test
     fun freshInstallThroughEveryMainScreen() {
-        // 1. Welcome
+        // 1. Welcome. The first frame can reach the screen a moment after it is composed.
         waitForText("Get started")
+        Thread.sleep(1_500)
         snap("onboarding-welcome")
         clickText("Get started")
 
@@ -180,6 +193,20 @@ class SmokeTest {
         Espresso.pressBack()
         waitForText("Send the invoice")
         snap("home-end")
+
+        // 14. With animations off, the long-press sheet and the Now sheet still open.
+        setAnimations(false)
+        Thread.sleep(1_000)
+        val homeApp = candidates.plus(listOf("Maps", "YT Music")).first(::hasAppRow)
+        compose.onAllNodes(hasText(homeApp) and !hasSetTextAction()).onFirst().performTouchInput { longClick() }
+        waitUntil("the long-press sheet with animations off", 10_000) { exists(hasText("App info")) }
+        snap("no-animations-app-actions")
+        Espresso.pressBack()
+        waitUntil("the sheet to close", 5_000) { !exists(hasText("App info")) }
+        clickText("Now task", substring = true)
+        waitUntil("the Now sheet with animations off", 10_000) { exists(hasText("For how long?")) }
+        snap("no-animations-now-sheet")
+        Espresso.pressBack()
     }
 
     /** Apps that are on every emulator image, in the order we try them. */
@@ -195,6 +222,8 @@ class SmokeTest {
             compose.waitUntil(timeoutMs, condition)
         } catch (e: Throwable) {
             snap("FAILED-waiting-for-${what.replace(Regex("[^A-Za-z0-9]+"), "-")}")
+            // What was on screen, for the logcat CI saves.
+            runCatching { compose.onAllNodes(isRoot()).printToLog("SmokeTest") }
             throw AssertionError("Timed out after ${timeoutMs / 1000} s waiting for $what", e)
         }
     }
@@ -212,6 +241,16 @@ class SmokeTest {
         waitUntil("\"$description\"", 10_000) { exists(hasContentDescription(description)) }
         compose.onAllNodes(hasContentDescription(description)).onFirst().performClick()
         compose.waitForIdle()
+    }
+
+    /** Sets Android's three animation scales, like Developer options or "Remove animations" do. */
+    private fun setAnimations(on: Boolean) {
+        val scale = if (on) "1" else "0"
+        for (name in listOf("window_animation_scale", "transition_animation_scale", "animator_duration_scale")) {
+            ParcelFileDescriptor.AutoCloseInputStream(
+                instrumentation.uiAutomation.executeShellCommand("settings put global $name $scale"),
+            ).use { it.readBytes() }
+        }
     }
 
     /**

@@ -437,13 +437,16 @@ private fun ByAppCard(s: WeekStats, appLabel: (String) -> String) {
                         Box(Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(999.dp)).background(c.surface2)) {
                             Box(Modifier.fillMaxWidth(a.opens.toFloat() / max).fillMaxHeight().clip(RoundedCornerShape(999.dp)).background(c.primary))
                         }
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Icon(TwIcons.Sprout, contentDescription = null, tint = c.primary, modifier = Modifier.size(14.dp))
-                            Text(
-                                if (a.turnedBack == 1) "Turned back once" else "Turned back ${a.turnedBack} times",
-                                style = TendwellType.caption.copy(lineHeight = 18.sp),
-                                color = c.ink3,
-                            )
+                        // Hidden at zero: "Turned back 0 times" reads like a telling-off.
+                        if (a.turnedBack > 0) {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Icon(TwIcons.Sprout, contentDescription = null, tint = c.primary, modifier = Modifier.size(14.dp))
+                                Text(
+                                    if (a.turnedBack == 1) "Turned back once" else "Turned back ${a.turnedBack} times",
+                                    style = TendwellType.caption.copy(lineHeight = 18.sp),
+                                    color = c.ink3,
+                                )
+                            }
                         }
                     }
                 }
