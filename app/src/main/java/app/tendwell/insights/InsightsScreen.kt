@@ -5,6 +5,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
@@ -17,6 +18,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -47,8 +49,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import app.tendwell.ui.components.ProBadge
+import app.tendwell.ui.components.ReadableWidth
 import app.tendwell.ui.components.TwIconButton
 import app.tendwell.ui.components.TwIcons
+import app.tendwell.ui.components.WideMaxWidth
+import app.tendwell.ui.components.isWide
 import app.tendwell.ui.theme.Tendwell
 import app.tendwell.ui.theme.TendwellType
 import java.time.DayOfWeek
@@ -56,7 +61,10 @@ import java.time.LocalDate
 import java.time.format.TextStyle
 import java.util.Locale
 
-/** Weekly insights (Pro): what happened at the pause screen this week. */
+/**
+ * Weekly insights (Pro): what happened at the pause screen this week.
+ * On a wide window ([isWide]) the cards sit in two columns.
+ */
 @Composable
 fun InsightsScreen(
     weekStart: LocalDate,
@@ -71,72 +79,132 @@ fun InsightsScreen(
     onBack: () -> Unit,
 ) {
     val c = Tendwell.colors
-    Column(
-        Modifier
-            .fillMaxSize()
-            .background(c.bg)
-            .safeDrawingPadding()
-            .verticalScroll(rememberScrollState())
-            .padding(start = 24.dp, end = 24.dp, top = 8.dp, bottom = 28.dp),
-        verticalArrangement = Arrangement.spacedBy(20.dp),
-    ) {
-        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            Row(Modifier.offset(x = (-10).dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                TwIconButton(TwIcons.ChevronLeft, contentDescription = "Back", onClick = onBack)
-                Text("Your week", style = TendwellType.h1, color = c.ink, modifier = Modifier.semantics { heading() })
-                Box(Modifier.padding(start = 10.dp)) { ProBadge() }
-            }
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                WeekButton(TwIcons.ChevronLeft, "Previous week", canGoBack, onPrevWeek)
-                Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(WeekInsights.weekName(weekStart, today), style = TendwellType.caption.copy(fontSize = 12.sp, fontWeight = FontWeight.SemiBold), color = c.ink3)
-                    Text(WeekInsights.weekRange(weekStart), style = TendwellType.secondary.copy(fontWeight = FontWeight.Bold), color = c.ink)
-                }
-                WeekButton(TwIcons.ChevronRight, "Next week", canGoForward, onNextWeek)
-            }
-        }
-
-        when {
-            stats == null -> Unit
-            stats.isEmpty -> Card {
-                Text(
-                    "Nothing to show for this week yet. This fills in as your paused apps meet the pause screen.",
-                    style = TendwellType.small.copy(lineHeight = 20.sp),
-                    color = c.ink2,
-                    modifier = Modifier.padding(20.dp),
-                )
-            }
-            else -> {
-                TurnedBackCard(stats)
-                OpensCard(stats, today)
-                DriftCard(stats, onSetFocusHours)
-                if (stats.byApp.isNotEmpty()) ByAppCard(stats, appLabel)
-            }
-        }
-
+    BoxWithConstraints(Modifier.fillMaxSize().background(c.bg), contentAlignment = Alignment.TopCenter) {
+        val wide = isWide(maxWidth, maxHeight)
         Column(
             Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(24.dp))
-                .background(c.surface2)
-                .padding(start = 20.dp, end = 20.dp, top = 18.dp, bottom = 20.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
+                .widthIn(max = if (wide) WideMaxWidth else ReadableWidth)
+                .fillMaxSize()
+                .safeDrawingPadding()
+                .verticalScroll(rememberScrollState())
+                .padding(start = 24.dp, end = 24.dp, top = 8.dp, bottom = 28.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp),
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Icon(TwIcons.Info, contentDescription = null, tint = c.ink2, modifier = Modifier.size(20.dp))
-                Text("About these counts", style = TendwellType.secondary.copy(fontWeight = FontWeight.Bold), color = c.ink, modifier = Modifier.semantics { heading() })
+            if (wide) {
+                Row(horizontalArrangement = Arrangement.spacedBy(40.dp)) {
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(20.dp)) {
+                        InsightsTitle(onBack)
+                        when {
+                            stats == null -> Unit
+                            stats.isEmpty -> EmptyWeekCard()
+                            else -> {
+                                TurnedBackCard(stats)
+                                OpensCard(stats, today)
+                            }
+                        }
+                    }
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(20.dp)) {
+                        WeekSwitcher(weekStart, today, canGoBack, canGoForward, onPrevWeek, onNextWeek)
+                        if (stats != null && !stats.isEmpty) {
+                            DriftCard(stats, onSetFocusHours)
+                            if (stats.byApp.isNotEmpty()) ByAppCard(stats, appLabel)
+                        }
+                        AboutCounts()
+                        OnPhoneNote()
+                    }
+                }
+            } else {
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    InsightsTitle(onBack)
+                    WeekSwitcher(weekStart, today, canGoBack, canGoForward, onPrevWeek, onNextWeek)
+                }
+                when {
+                    stats == null -> Unit
+                    stats.isEmpty -> EmptyWeekCard()
+                    else -> {
+                        TurnedBackCard(stats)
+                        OpensCard(stats, today)
+                        DriftCard(stats, onSetFocusHours)
+                        if (stats.byApp.isNotEmpty()) ByAppCard(stats, appLabel)
+                    }
+                }
+                AboutCounts()
+                OnPhoneNote()
             }
-            Text(
-                "These counts include paused apps opened from your Home screen and search.",
-                style = TendwellType.small.copy(lineHeight = 20.sp),
-                color = c.ink2,
-            )
         }
+    }
+}
 
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally), verticalAlignment = Alignment.CenterVertically) {
-            Icon(TwIcons.Shield, contentDescription = null, tint = c.ink3, modifier = Modifier.size(16.dp))
-            Text("Everything stays on this phone.", style = TendwellType.caption, color = c.ink3)
+@Composable
+private fun InsightsTitle(onBack: () -> Unit) {
+    Row(Modifier.offset(x = (-10).dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+        TwIconButton(TwIcons.ChevronLeft, contentDescription = "Back", onClick = onBack)
+        Text("Your week", style = TendwellType.h1, color = Tendwell.colors.ink, modifier = Modifier.semantics { heading() })
+        Box(Modifier.padding(start = 10.dp)) { ProBadge() }
+    }
+}
+
+@Composable
+private fun WeekSwitcher(
+    weekStart: LocalDate,
+    today: LocalDate,
+    canGoBack: Boolean,
+    canGoForward: Boolean,
+    onPrevWeek: () -> Unit,
+    onNextWeek: () -> Unit,
+) {
+    val c = Tendwell.colors
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        WeekButton(TwIcons.ChevronLeft, "Previous week", canGoBack, onPrevWeek)
+        Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(WeekInsights.weekName(weekStart, today), style = TendwellType.caption.copy(fontSize = 12.sp, fontWeight = FontWeight.SemiBold), color = c.ink3)
+            Text(WeekInsights.weekRange(weekStart), style = TendwellType.secondary.copy(fontWeight = FontWeight.Bold), color = c.ink)
         }
+        WeekButton(TwIcons.ChevronRight, "Next week", canGoForward, onNextWeek)
+    }
+}
+
+@Composable
+private fun EmptyWeekCard() {
+    Card {
+        Text(
+            "Nothing to show for this week yet. This fills in as your paused apps meet the pause screen.",
+            style = TendwellType.small.copy(lineHeight = 20.sp),
+            color = Tendwell.colors.ink2,
+            modifier = Modifier.padding(20.dp),
+        )
+    }
+}
+
+@Composable
+private fun AboutCounts() {
+    val c = Tendwell.colors
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(24.dp))
+            .background(c.surface2)
+            .padding(start = 20.dp, end = 20.dp, top = 18.dp, bottom = 20.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Icon(TwIcons.Info, contentDescription = null, tint = c.ink2, modifier = Modifier.size(20.dp))
+            Text("About these counts", style = TendwellType.secondary.copy(fontWeight = FontWeight.Bold), color = c.ink, modifier = Modifier.semantics { heading() })
+        }
+        Text(
+            "These counts include paused apps opened from your Home screen and search.",
+            style = TendwellType.small.copy(lineHeight = 20.sp),
+            color = c.ink2,
+        )
+    }
+}
+
+@Composable
+private fun OnPhoneNote() {
+    val c = Tendwell.colors
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally), verticalAlignment = Alignment.CenterVertically) {
+        Icon(TwIcons.Shield, contentDescription = null, tint = c.ink3, modifier = Modifier.size(16.dp))
+        Text("Everything stays on this phone.", style = TendwellType.caption, color = c.ink3)
     }
 }
 

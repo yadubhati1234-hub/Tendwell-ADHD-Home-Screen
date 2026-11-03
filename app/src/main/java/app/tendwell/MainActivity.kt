@@ -65,6 +65,7 @@ import app.tendwell.settings.SettingsScreen
 import app.tendwell.timebar.CalendarReader
 import app.tendwell.timebar.TimeBarModel
 import app.tendwell.ui.components.AppActionsSheet
+import app.tendwell.ui.components.CenteredPage
 import app.tendwell.ui.theme.Tendwell
 import app.tendwell.ui.theme.TendwellTheme
 import kotlinx.coroutines.channels.BufferOverflow
@@ -271,38 +272,41 @@ class MainActivity : ComponentActivity() {
                     launcher.finishOnboarding()
                     goHome()
                 }
-                when {
-                    obProFromPause -> PaywallRoute(tendwell.billing, step = null, onDone = { obProFromPause = false })
-                    obStep <= 1 -> WelcomeStep(onStart = { obStep = 2 })
-                    obStep == 2 -> EssentialsStep(
-                        apps = state.allApps,
-                        selected = essentialsSel,
-                        onToggle = { obEssentials = toggled(essentialsSel, it) },
-                        onBack = { obStep = 1 },
-                        onContinue = {
-                            launcher.saveEssentials(essentialsSel)
-                            obStep = 3
-                        },
-                    )
-                    obStep == 3 -> PauseAppsStep(
-                        apps = state.allApps,
-                        selected = pausedSel,
-                        isPro = state.isPro,
-                        onToggle = { obPaused = toggled(pausedSel, it) },
-                        onBack = { obStep = 2 },
-                        onContinue = {
-                            launcher.savePaused(pausedSel)
-                            obStep = 4
-                        },
-                        onSeePro = { obProFromPause = true },
-                    )
-                    obStep == 4 -> SetHomeStep(
-                        isDefaultHome = isDefaultHome,
-                        onBack = { obStep = 3 },
-                        onSetHome = ::requestHomeRole,
-                        onNext = { obStep = 5 },
-                    )
-                    else -> PaywallRoute(tendwell.billing, step = 5, onDone = ::finish)
+                // On tablets the one-column onboarding stays at a readable width.
+                CenteredPage {
+                    when {
+                        obProFromPause -> PaywallRoute(tendwell.billing, step = null, onDone = { obProFromPause = false })
+                        obStep <= 1 -> WelcomeStep(onStart = { obStep = 2 })
+                        obStep == 2 -> EssentialsStep(
+                            apps = state.allApps,
+                            selected = essentialsSel,
+                            onToggle = { obEssentials = toggled(essentialsSel, it) },
+                            onBack = { obStep = 1 },
+                            onContinue = {
+                                launcher.saveEssentials(essentialsSel)
+                                obStep = 3
+                            },
+                        )
+                        obStep == 3 -> PauseAppsStep(
+                            apps = state.allApps,
+                            selected = pausedSel,
+                            isPro = state.isPro,
+                            onToggle = { obPaused = toggled(pausedSel, it) },
+                            onBack = { obStep = 2 },
+                            onContinue = {
+                                launcher.savePaused(pausedSel)
+                                obStep = 4
+                            },
+                            onSeePro = { obProFromPause = true },
+                        )
+                        obStep == 4 -> SetHomeStep(
+                            isDefaultHome = isDefaultHome,
+                            onBack = { obStep = 3 },
+                            onSetHome = ::requestHomeRole,
+                            onNext = { obStep = 5 },
+                        )
+                        else -> PaywallRoute(tendwell.billing, step = 5, onDone = ::finish)
+                    }
                 }
                 return
             }
@@ -337,54 +341,58 @@ class MainActivity : ComponentActivity() {
                     onOpenSearch = { screen = Screen.Search },
                     onOpenSettings = { screen = Screen.Settings },
                 )
-                Screen.Search -> SearchScreen(
-                    apps = state.allApps,
-                    pausedKeys = state.pausedKeys,
-                    query = query,
-                    onQueryChange = { query = it },
-                    onLaunch = ::launch,
-                    onLongPress = { sheetFor = it.key; sheetOnHome = it.key in state.essentialKeys },
-                    onClose = ::goHome,
-                )
-                Screen.Settings -> SettingsScreen(
-                    isDefaultHome = isDefaultHome,
-                    bedtimeMin = currentDay?.bedtimeMin ?: TimeBarModel.DAY - 60,
-                    calendarOn = currentDay?.calendarOn == true,
-                    pausedNames = state.pausedApps.map { it.label },
-                    isPro = state.isPro,
-                    focusSummary = focusBlocks.filter { it.on }.let { on ->
-                        when (on.size) {
-                            0 -> null
-                            1 -> FocusHours.summary(on[0])
-                            else -> "${on.size} sets of focus hours on"
-                        }
-                    },
-                    onPickBedtime = {
-                        val current = currentDay?.bedtimeMin ?: (23 * 60)
-                        TimePickerDialog(this@MainActivity, { _, h, m -> dayModel.setBedtime(h * 60 + m) }, current / 60, current % 60, true).show()
-                    },
-                    onToggleCalendar = { on ->
-                        if (on && !CalendarReader.hasPermission(this@MainActivity)) {
-                            calendarPermission.launch(Manifest.permission.READ_CALENDAR)
-                        } else {
-                            dayModel.setCalendarOn(on)
-                        }
-                    },
-                    onOpenHomeSettings = { startSafely(launcher.homeSettingsIntent()) },
-                    onOpenPro = { openPaywall(Screen.Settings) },
-                    onOpenFocusHours = {
-                        focusFromInsights = false
-                        if (state.isPro) screen = Screen.FocusHours else openPaywall(Screen.Settings)
-                    },
-                    onOpenInsights = {
-                        insightsWeek = null
-                        if (state.isPro) screen = Screen.Insights else openPaywall(Screen.Settings)
-                    },
-                    onManagePro = {
-                        startSafely(Intent(Intent.ACTION_VIEW, Uri.parse(BillingRepository.manageSubscriptionUrl(packageName))))
-                    },
-                    onBack = ::goHome,
-                )
+                Screen.Search -> CenteredPage {
+                    SearchScreen(
+                        apps = state.allApps,
+                        pausedKeys = state.pausedKeys,
+                        query = query,
+                        onQueryChange = { query = it },
+                        onLaunch = ::launch,
+                        onLongPress = { sheetFor = it.key; sheetOnHome = it.key in state.essentialKeys },
+                        onClose = ::goHome,
+                    )
+                }
+                Screen.Settings -> CenteredPage {
+                    SettingsScreen(
+                        isDefaultHome = isDefaultHome,
+                        bedtimeMin = currentDay?.bedtimeMin ?: TimeBarModel.DAY - 60,
+                        calendarOn = currentDay?.calendarOn == true,
+                        pausedNames = state.pausedApps.map { it.label },
+                        isPro = state.isPro,
+                        focusSummary = focusBlocks.filter { it.on }.let { on ->
+                            when (on.size) {
+                                0 -> null
+                                1 -> FocusHours.summary(on[0])
+                                else -> "${on.size} sets of focus hours on"
+                            }
+                        },
+                        onPickBedtime = {
+                            val current = currentDay?.bedtimeMin ?: (23 * 60)
+                            TimePickerDialog(this@MainActivity, { _, h, m -> dayModel.setBedtime(h * 60 + m) }, current / 60, current % 60, true).show()
+                        },
+                        onToggleCalendar = { on ->
+                            if (on && !CalendarReader.hasPermission(this@MainActivity)) {
+                                calendarPermission.launch(Manifest.permission.READ_CALENDAR)
+                            } else {
+                                dayModel.setCalendarOn(on)
+                            }
+                        },
+                        onOpenHomeSettings = { startSafely(launcher.homeSettingsIntent()) },
+                        onOpenPro = { openPaywall(Screen.Settings) },
+                        onOpenFocusHours = {
+                            focusFromInsights = false
+                            if (state.isPro) screen = Screen.FocusHours else openPaywall(Screen.Settings)
+                        },
+                        onOpenInsights = {
+                            insightsWeek = null
+                            if (state.isPro) screen = Screen.Insights else openPaywall(Screen.Settings)
+                        },
+                        onManagePro = {
+                            startSafely(Intent(Intent.ACTION_VIEW, Uri.parse(BillingRepository.manageSubscriptionUrl(packageName))))
+                        },
+                        onBack = ::goHome,
+                    )
+                }
                 Screen.Timer -> {
                     val timerTask = nowTask?.takeIf { it.hasTimer || it.phase == NowPhase.Done }
                     if (timerTask != null) TimerScreen(
@@ -433,17 +441,19 @@ class MainActivity : ComponentActivity() {
                         )
                     }
                 }
-                Screen.Paywall -> PaywallRoute(tendwell.billing, step = null, onDone = ::closePaywall)
-                Screen.FocusHours -> FocusHoursScreen(
-                    blocks = focusBlocks,
-                    now = nowMinute,
-                    pausedNames = state.pausedApps.map { it.label },
-                    onChange = launcher::setFocusBlocks,
-                    onPickTime = { current, onPicked ->
-                        TimePickerDialog(this@MainActivity, { _, h, m -> onPicked(h * 60 + m) }, current / 60, current % 60, true).show()
-                    },
-                    onBack = { screen = if (focusFromInsights) Screen.Insights else Screen.Settings },
-                )
+                Screen.Paywall -> CenteredPage { PaywallRoute(tendwell.billing, step = null, onDone = ::closePaywall) }
+                Screen.FocusHours -> CenteredPage {
+                    FocusHoursScreen(
+                        blocks = focusBlocks,
+                        now = nowMinute,
+                        pausedNames = state.pausedApps.map { it.label },
+                        onChange = launcher::setFocusBlocks,
+                        onPickTime = { current, onPicked ->
+                            TimePickerDialog(this@MainActivity, { _, h, m -> onPicked(h * 60 + m) }, current / 60, current % 60, true).show()
+                        },
+                        onBack = { screen = if (focusFromInsights) Screen.Insights else Screen.Settings },
+                    )
+                }
                 Screen.Insights -> {
                     val thisWeek = WeekInsights.weekStart(today)
                     val week = insightsWeek?.let { runCatching { LocalDate.parse(it) }.getOrNull() } ?: thisWeek
@@ -467,18 +477,20 @@ class MainActivity : ComponentActivity() {
                         onBack = { screen = Screen.Settings },
                     )
                 }
-                Screen.CheckIn -> CheckInScreen(
-                    now = nowMinute,
-                    picks = checkInPicks(currentDay, today),
-                    onSet = { text ->
-                        dayModel.setOneThing(text)
-                        goHome()
-                    },
-                    onSkip = {
-                        dayModel.skipCheckIn()
-                        goHome()
-                    },
-                )
+                Screen.CheckIn -> CenteredPage {
+                    CheckInScreen(
+                        now = nowMinute,
+                        picks = checkInPicks(currentDay, today),
+                        onSet = { text ->
+                            dayModel.setOneThing(text)
+                            goHome()
+                        },
+                        onSkip = {
+                            dayModel.skipCheckIn()
+                            goHome()
+                        },
+                    )
+                }
             }
 
             if (showNowSet) {
