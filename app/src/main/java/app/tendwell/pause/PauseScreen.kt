@@ -193,7 +193,7 @@ private fun BreathingCircle(size: Dp, breath: Float, left: Int, done: Boolean) {
         Modifier
             .size(size)
             .clearAndSetSemantics {
-                contentDescription = if (done) "Your pause is over" else "$left seconds left in your pause"
+                contentDescription = if (done) "Your pause is over" else (if (left == 1) "1 second" else "$left seconds") + " left in your pause"
             },
         contentAlignment = Alignment.Center,
     ) {

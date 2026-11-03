@@ -150,7 +150,8 @@ class SmokeTest {
         clickText("Search apps")
         waitUntil("the search field", 5_000) { exists(hasContentDescription("Search apps") and hasSetTextAction()) }
         compose.onNode(hasContentDescription("Search apps") and hasSetTextAction()).performTextInput(pausedApp)
-        val result = hasText(pausedApp) and !hasSetTextAction()
+        // A result row reads as one item to TalkBack ("YouTube, opens after a 10 second pause").
+        val result = hasContentDescription(pausedApp, substring = true) and !hasSetTextAction()
         waitUntil("$pausedApp in the results", 5_000) { exists(result) }
         snap("search")
         compose.onAllNodes(result).onFirst().performTouchInput { longClick() }
