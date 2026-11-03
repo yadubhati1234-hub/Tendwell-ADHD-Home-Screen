@@ -12,3 +12,5 @@ One-time setup (repo owner):
 Keep this page and the Play Data safety form in sync when features change (for example when analytics events are added).
 
 `docs/delete-data/index.md` is the data deletion page whose URL is in the Play Data safety form (`https://yadubhati1234-hub.github.io/Tendwell-ADHD-Home-Screen/delete-data/`). Keep its steps true: it points users to a "Copy analytics ID" row in Settings, which has to ship with Firebase.
+
+`docs/terms/index.md` is the terms of service (`https://yadubhati1234-hub.github.io/Tendwell-ADHD-Home-Screen/terms/`). Play's EU trader declaration asks for it on the App content page, and the paywall links to it next to Privacy. Keep its Pro, trial and pause descriptions true when those change.

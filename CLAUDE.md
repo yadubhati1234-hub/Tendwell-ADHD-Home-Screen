@@ -30,7 +30,7 @@ Planned pieces: a local database (Room), Google Play Billing, Firebase Crashlyti
 - **The pause screen only intercepts launches made from this launcher.** Catching launches from notifications, recents or other launchers would need Usage Access (`PACKAGE_USAGE_STATS`). That's a product decision and it has Play policy implications, so don't add it silently.
 - **Timer alerts** need the `POST_NOTIFICATIONS` runtime permission (Android 13+). Use inexact alarms or WorkManager rather than `SCHEDULE_EXACT_ALARM`, which Play restricts.
 - **Billing can only be tested on a build uploaded to a Play testing track** (internal testing is enough). Check out the test SKUs there; they don't work in a debug sideload.
-- **Anything collected on the device** (check-ins, usage, analytics, crash data) must match the Play Console Data safety form and the privacy policy. Update those whenever data collection changes. The data deletion page (`docs/delete-data/`) is linked from the Data safety form, so keep it in step too.
+- **Anything collected on the device** (check-ins, usage, analytics, crash data) must match the Play Console Data safety form and the privacy policy. Update those whenever data collection changes. The data deletion page (`docs/delete-data/`) is linked from the Data safety form, so keep it in step too. The terms of service (`docs/terms/`) are linked from the paywall and Play's trader declaration; keep what they say about Pro, trials and the pause true.
 
 ## Layout
 
@@ -51,7 +51,7 @@ Single Gradle module `:app`, package `app.tendwell` (debug builds use `app.tendw
 - `home/`, `search/`, `settings/` hold the other screens; `search/AppSearch` is pure Kotlin (ranking, accent-insensitive matching, letter groups) and is unit-tested.
 - `ui/components/Layout.kt` holds the tablet rules. When the window is at least 600 dp wide and wider than it is tall (`isWide`: a tablet or unfolded foldable held sideways, or a phone turned sideways), Home, Pause, the focus timer and Insights switch to two columns that match the store's tablet screenshots (`/mnt/project-files/store-listing/upload/4-tablet-7-inch/`). If those screens change on tablets, the tablet screenshots must be re-made. Other screens stay one column, centred at 600 dp by `CenteredPage` in `MainActivity`.
 - `ui/theme/` has the design tokens (`Tokens.kt`, copied from the design canvas's `tokens()`), the bundled variable fonts Fraunces and Plus Jakarta Sans (`res/font/`, OFL texts in `assets/licenses/`) and `TendwellType`. Use `Tendwell.colors` and `TendwellType`, not Material defaults. `ui/components/Icons.kt` has the spec's line icons.
-- The launcher icon is a placeholder (the spec's sprout icon on sage) until the real icon exists.
+- The launcher icon is the spec's sprout icon on sage. The Play Store icon (`/mnt/project-files/store-listing/upload/1-app-icon/`) matches it, so change both together.
 
 ## Commands
 

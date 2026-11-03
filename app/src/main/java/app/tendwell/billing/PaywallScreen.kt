@@ -81,6 +81,7 @@ import kotlinx.coroutines.launch
 import java.time.LocalDate
 
 const val PRIVACY_URL = "https://yadubhati1234-hub.github.io/Tendwell-ADHD-Home-Screen/privacy/"
+const val TERMS_URL = "https://yadubhati1234-hub.github.io/Tendwell-ADHD-Home-Screen/terms/"
 
 /**
  * The Pro paywall wired to Google Play. [step] is 5 during onboarding (shows
@@ -134,8 +135,8 @@ fun PaywallRoute(billing: BillingRepository, step: Int?, onDone: () -> Unit) {
             val ok = activity != null && billing.launch(activity, offer)
             if (!ok) message = "Google Play didn't respond. Try again in a moment."
         },
-        onPrivacy = {
-            runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(PRIVACY_URL)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+        onOpenLink = { url ->
+            runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
         },
         onAccessCode = { code ->
             val ok = billing.redeemAccessCode(code)
@@ -163,7 +164,7 @@ fun PaywallScreen(
     onRestore: () -> Unit,
     onRetry: () -> Unit,
     onBuy: (PlanOffer) -> Unit,
-    onPrivacy: () -> Unit,
+    onOpenLink: (url: String) -> Unit,
     onAccessCode: suspend (String) -> Boolean,
 ) {
     val c = Tendwell.colors
@@ -274,7 +275,8 @@ fun PaywallScreen(
             }
 
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
-                FooterLink("Privacy", onClick = onPrivacy)
+                FooterLink("Terms", onClick = { onOpenLink(TERMS_URL) })
+                FooterLink("Privacy", onClick = { onOpenLink(PRIVACY_URL) })
                 FooterLink("Have an access code?", onClick = { codeOpen = true })
             }
         }

@@ -351,7 +351,7 @@ abstract class ScreenshotTests(private val device: String) {
             onRestore = noop,
             onRetry = noop,
             onBuy = {},
-            onPrivacy = noop,
+            onOpenLink = {},
             onAccessCode = { false },
         )
     }
