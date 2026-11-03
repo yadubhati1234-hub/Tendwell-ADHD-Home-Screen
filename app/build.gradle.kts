@@ -4,6 +4,9 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+    // Reads app/google-services.json (the Firebase project "Tendwell"; its IDs are not secret).
+    alias(libs.plugins.google.services)
+    alias(libs.plugins.firebase.crashlytics)
 }
 
 // Release signing comes from environment variables (CI) or an untracked
@@ -47,8 +50,11 @@ android {
         debug {
             applicationIdSuffix = ".debug"
             versionNameSuffix = "-debug"
+            // Debug builds (CI's emulator test, sideloads) send nothing to Firebase.
+            manifestPlaceholders["firebaseCollection"] = "false"
         }
         release {
+            manifestPlaceholders["firebaseCollection"] = "true"
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
@@ -97,6 +103,11 @@ dependencies {
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.play.billing)
+
+    // Crash reports and anonymous feature events (see analytics/Analytics.kt and docs/privacy).
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.analytics)
+    implementation(libs.firebase.crashlytics)
 
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.ui)

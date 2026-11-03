@@ -75,7 +75,7 @@ object PlanText {
     }
 
     fun trust(o: PlanOffer): String =
-        if (o.plan == ProPlan.Lifetime) "No account needed. It all stays on your phone." else "Early subscribers keep this price for good."
+        if (o.plan == ProPlan.Lifetime) "No account needed. Pay once, no renewals." else "Early subscribers keep this price for good."
 
     /** The last day to cancel without being charged, like "10 November". */
     fun cancelBy(today: LocalDate, trialDays: Int, locale: Locale = Locale.getDefault()): String =

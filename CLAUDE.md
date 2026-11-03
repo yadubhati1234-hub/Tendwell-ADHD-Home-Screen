@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Status
 
-Scaffolded on 2026-11-02. Done: core launcher (HOME intent, Home, search, long-press actions, Settings), time bar, Now card with timer and break, daily check-in, pause screen, onboarding, the Pro paywall with Play Billing, focus hours and weekly insights. Still to come: Firebase (Crashlytics and analytics). Room turned out not to be needed so far: settings live in DataStore and the open log is a small text file.
+Scaffolded on 2026-11-02. Done: core launcher (HOME intent, Home, search, long-press actions, Settings), time bar, Now card with timer and break, daily check-in, pause screen, onboarding, the Pro paywall with Play Billing, focus hours and weekly insights, Firebase Crashlytics and Analytics. Room turned out not to be needed so far: settings live in DataStore and the open log is a small text file.
 
 ## What this is
 
@@ -30,7 +30,7 @@ Planned pieces: a local database (Room), Google Play Billing, Firebase Crashlyti
 - **The pause screen only intercepts launches made from this launcher.** Catching launches from notifications, recents or other launchers would need Usage Access (`PACKAGE_USAGE_STATS`). That's a product decision and it has Play policy implications, so don't add it silently.
 - **Timer alerts** need the `POST_NOTIFICATIONS` runtime permission (Android 13+). Use inexact alarms or WorkManager rather than `SCHEDULE_EXACT_ALARM`, which Play restricts.
 - **Billing can only be tested on a build uploaded to a Play testing track** (internal testing is enough). Check out the test SKUs there; they don't work in a debug sideload.
-- **Anything collected on the device** (check-ins, usage, analytics, crash data) must match the Play Console Data safety form and the privacy policy. Update those whenever data collection changes. The data deletion page (`docs/delete-data/`) is linked from the Data safety form, so keep it in step too.
+- **Anything collected on the device** (check-ins, usage, analytics, crash data) must match the Play Console Data safety form and the privacy policy. Update those whenever data collection changes. The data deletion page (`docs/delete-data/`) is linked from the Data safety form, so keep it in step too. The terms of service (`docs/terms/`) are linked from the paywall and Play's trader declaration; keep what they say about Pro, trials and the pause true.
 
 ## Layout
 
@@ -48,10 +48,11 @@ Single Gradle module `:app`, package `app.tendwell` (debug builds use `app.tendw
 - `focus/FocusHours` is the pure focus-hours model (blocks with days, start/end that may cross midnight, and a 30 s, 1 min or 2 min pause), its saved form in `Prefs` (`focus_blocks`) and the status line; unit-tested. During an active block a Pro user's paused apps wait the block's pause instead of 10 s.
 - `insights/WeekInsights` turns the open log into Monday-to-Sunday stats (opens, turned back, per day, per time-of-day slot, per app, change from the week before); unit-tested. `InsightsScreen` can go back four weeks, which is what the 35-day log holds.
 - Pro lifts the 3-app pause limit. Without Pro only the first 3 saved paused apps apply (`effectivePaused`); the rest stay saved for when Pro comes back.
+- `analytics/Analytics` is the only place analytics events are logged (Google Analytics for Firebase). Every event name and parameter is fixed there, so task text, check-in answers, calendar data and app names can never be sent; keep it that way, because the privacy policy, the store description and the Data safety form promise it. Crashlytics needs no code. `app/google-services.json` is the Firebase project `tendwell-198a7` with clients for `app.tendwell` and `app.tendwell.debug` (not secret). Collection is off in debug builds (`firebaseCollection` manifest placeholder), and the manifest removes `AD_ID` and turns off ad signals and the Android ID. Settings' "Copy analytics ID" row copies the Firebase app instance ID, which `Analytics.linkCrashReports` also sets as the Crashlytics user ID, so one ID deletes both (`docs/delete-data` sends people to that row by name).
 - `home/`, `search/`, `settings/` hold the other screens; `search/AppSearch` is pure Kotlin (ranking, accent-insensitive matching, letter groups) and is unit-tested.
 - `ui/components/Layout.kt` holds the tablet rules. When the window is at least 600 dp wide and wider than it is tall (`isWide`: a tablet or unfolded foldable held sideways, or a phone turned sideways), Home, Pause, the focus timer and Insights switch to two columns that match the store's tablet screenshots (`/mnt/project-files/store-listing/upload/4-tablet-7-inch/`). If those screens change on tablets, the tablet screenshots must be re-made. Other screens stay one column, centred at 600 dp by `CenteredPage` in `MainActivity`.
 - `ui/theme/` has the design tokens (`Tokens.kt`, copied from the design canvas's `tokens()`), the bundled variable fonts Fraunces and Plus Jakarta Sans (`res/font/`, OFL texts in `assets/licenses/`) and `TendwellType`. Use `Tendwell.colors` and `TendwellType`, not Material defaults. `ui/components/Icons.kt` has the spec's line icons.
-- The launcher icon is a placeholder (the spec's sprout icon on sage) until the real icon exists.
+- The launcher icon is the spec's sprout icon on sage. The Play Store icon (`/mnt/project-files/store-listing/upload/1-app-icon/`) matches it, so change both together.
 
 ## Commands
 

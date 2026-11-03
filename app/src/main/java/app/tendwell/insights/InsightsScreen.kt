@@ -204,7 +204,7 @@ private fun OnPhoneNote() {
     val c = Tendwell.colors
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally), verticalAlignment = Alignment.CenterVertically) {
         Icon(TwIcons.Shield, contentDescription = null, tint = c.ink3, modifier = Modifier.size(16.dp))
-        Text("Everything stays on this phone.", style = TendwellType.caption, color = c.ink3)
+        Text("These counts stay on this phone.", style = TendwellType.caption, color = c.ink3)
     }
 }
 

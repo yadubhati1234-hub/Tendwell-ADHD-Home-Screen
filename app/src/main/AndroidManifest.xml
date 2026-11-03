@@ -6,6 +6,9 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- Optional: only asked for when the user turns on calendar in the time bar. -->
     <uses-permission android:name="android.permission.READ_CALENDAR" />
+    <!-- Firebase Analytics would add this. Tendwell has no ads and never reads the advertising
+         ID, which is also what the Play Console advertising ID declaration says. -->
+    <uses-permission android:name="com.google.android.gms.permission.AD_ID" tools:node="remove" />
 
     <!-- Lets the launcher see every app that has a launcher icon (Android 11+
          package visibility), without the restricted QUERY_ALL_PACKAGES. -->
@@ -42,7 +45,7 @@
             android:launchMode="singleTask"
             android:resumeWhilePausing="true"
             android:stateNotNeeded="true"
-            android:windowSoftInputMode="adjustResize">
+            android:windowSoftInputMode="adjustResize|stateAlwaysHidden">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.HOME" />
@@ -54,5 +57,30 @@
         <receiver
             android:name=".now.TimerAlarm$TimerAlarmReceiver"
             android:exported="false" />
+
+        <!-- Firebase. Collection is off in debug builds (firebaseCollection in build.gradle.kts).
+             No advertising ID, no Android ID, no ad signals: this must match the Play Data
+             safety form and docs/privacy. -->
+        <meta-data
+            android:name="firebase_analytics_collection_enabled"
+            android:value="${firebaseCollection}" />
+        <meta-data
+            android:name="firebase_crashlytics_collection_enabled"
+            android:value="${firebaseCollection}" />
+        <meta-data
+            android:name="google_analytics_adid_collection_enabled"
+            android:value="false" />
+        <meta-data
+            android:name="google_analytics_ssaid_collection_enabled"
+            android:value="false" />
+        <meta-data
+            android:name="google_analytics_default_allow_ad_storage"
+            android:value="false" />
+        <meta-data
+            android:name="google_analytics_default_allow_ad_user_data"
+            android:value="false" />
+        <meta-data
+            android:name="google_analytics_default_allow_ad_personalization_signals"
+            android:value="false" />
     </application>
 </manifest>
