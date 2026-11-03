@@ -4,6 +4,9 @@ import android.Manifest
 import android.graphics.Bitmap
 import android.os.Build
 import android.os.ParcelFileDescriptor
+import android.util.Log
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasSetTextAction
@@ -17,6 +20,8 @@ import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.printToLog
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.test.espresso.Espresso
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -126,8 +131,7 @@ class SmokeTest {
         snap("home")
 
         // 8. A Now task with a timer.
-        clickText("Set a Now task")
-        waitForText("Save without a timer")
+        clickTextUntil("Set a Now task", hasText("Save without a timer"), "the Now sheet")
         compose.onNode(hasContentDescription("Task for now")).performTextInput("Write the report")
         snap("now-sheet")
         clickText("Start timer")
@@ -223,6 +227,10 @@ class SmokeTest {
         Espresso.pressBack()
     }
 
+    private companion object {
+        const val TAG = "SmokeTest"
+    }
+
     /** Apps that are on every emulator image, in the order we try them. */
     private val candidates = listOf("Settings", "Camera", "Clock", "Contacts", "Phone", "Messages", "Files", "Chrome")
     private val pauseCandidates = listOf("YouTube", "Chrome", "Clock", "Contacts", "Files", "Camera")
@@ -236,10 +244,46 @@ class SmokeTest {
             compose.waitUntil(timeoutMs, condition)
         } catch (e: Throwable) {
             snap("FAILED-waiting-for-${what.replace(Regex("[^A-Za-z0-9]+"), "-")}")
-            // What was on screen, for the logcat CI saves.
-            runCatching { compose.onAllNodes(isRoot()).printToLog("SmokeTest") }
+            logScreen()
             throw AssertionError("Timed out after ${timeoutMs / 1000} s waiting for $what", e)
         }
+    }
+
+    /** What was on screen, one line per node with text, for the logcat CI saves and prints. */
+    private fun logScreen() {
+        runCatching { Log.d(TAG, "Keyboard shown: ${keyboardShown()}") }
+        runCatching {
+            compose.onAllNodes(SemanticsMatcher("any node") { true }).fetchSemanticsNodes().forEach { node ->
+                val text = node.config.getOrNull(SemanticsProperties.Text)?.joinToString(" | ")
+                val description = node.config.getOrNull(SemanticsProperties.ContentDescription)?.joinToString(" | ")
+                if (text != null || description != null) {
+                    Log.d(TAG, "${node.boundsInRoot} text=$text description=$description")
+                }
+            }
+        }
+        runCatching { compose.onAllNodes(isRoot()).printToLog(TAG) }
+    }
+
+    /** Whether the soft keyboard is up over the app's window. */
+    private fun keyboardShown(): Boolean {
+        val decor = compose.activity.window.decorView
+        return compose.runOnUiThread { ViewCompat.getRootWindowInsets(decor)?.isVisible(WindowInsetsCompat.Type.ime()) == true }
+    }
+
+    /**
+     * Clicks [label] until [expected] shows, up to 3 times. On a slow emulator the keyboard from
+     * the screen before can finish opening after that screen has gone; while it opens and closes
+     * again, the window resizes under the tap and the tap misses. Each try waits for the keyboard
+     * to close first.
+     */
+    private fun clickTextUntil(label: String, expected: SemanticsMatcher, what: String) {
+        repeat(3) { attempt ->
+            runCatching { compose.waitUntil(5_000) { !keyboardShown() } }
+            clickText(label)
+            if (runCatching { compose.waitUntil(5_000) { exists(expected) } }.isSuccess) return
+            Log.d(TAG, "Tap ${attempt + 1} on \"$label\" did not open $what, keyboard shown: ${keyboardShown()}")
+        }
+        waitUntil(what, 1_000) { exists(expected) }
     }
 
     private fun waitForText(text: String, substring: Boolean = false) =

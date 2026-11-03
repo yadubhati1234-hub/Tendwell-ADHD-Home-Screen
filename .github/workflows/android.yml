@@ -140,7 +140,7 @@ jobs:
           ls -la emulator-shots
           # On a failure, print what was on screen (the test logs the semantics tree) so the job log shows it.
           if [ -f smoke-failed ] && [ -f emulator-shots/logcat.txt ]; then
-            grep -E " (SmokeTest|TestRunner|AndroidRuntime)\(" emulator-shots/logcat.txt | tail -n 400 || true
+            grep -E "/(SmokeTest|TestRunner|AndroidRuntime)\(" emulator-shots/logcat.txt | tail -n 400 || true
           fi
 
       - name: Upload emulator results
