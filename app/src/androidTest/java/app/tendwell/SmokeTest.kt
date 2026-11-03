@@ -69,6 +69,10 @@ class SmokeTest {
                 // A slow emulator's own launcher can raise "isn't responding" dialogs over the app.
                 shell("settings put global hide_error_dialogs 1")
                 shell("settings put secure anr_show_background 0")
+                // One may already be up from boot, holding window focus, so close it, then wake and unlock.
+                shell("am broadcast -a android.intent.action.CLOSE_SYSTEM_DIALOGS")
+                shell("input keyevent KEYCODE_WAKEUP")
+                shell("wm dismiss-keyguard")
             }
         })
         .around(compose)

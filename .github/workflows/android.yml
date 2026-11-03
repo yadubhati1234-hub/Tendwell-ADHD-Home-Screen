@@ -119,7 +119,11 @@ jobs:
           profile: pixel_6
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
+          # A just-booted emulator's own apps can raise "isn't responding" dialogs
+          # that take window focus from the test, so they are hidden first.
           script: |
+            adb shell settings put global hide_error_dialogs 1 || true
+            adb shell am broadcast -a android.intent.action.CLOSE_SYSTEM_DIALOGS || true
             ./gradlew connectedDebugAndroidTest -Pandroid.injected.androidTest.leaveApksInstalledAfterRun=true || touch smoke-failed
             mkdir -p emulator-shots
             adb pull /sdcard/Android/data/app.tendwell.debug/files/smoke emulator-shots/ || true
