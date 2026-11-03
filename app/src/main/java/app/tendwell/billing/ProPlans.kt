@@ -14,7 +14,11 @@ object ProductIds {
     /** Subscription with two base plans, each with a 7-day free trial offer. */
     const val PRO_SUBSCRIPTION = "tendwell_pro"
     const val BASE_PLAN_MONTHLY = "monthly"
-    const val BASE_PLAN_YEARLY = "yearly"
+    /**
+     * "annual", not "yearly": the first base plan named yearly was activated with a
+     * monthly billing period by mistake, and Play never lets an activated ID be reused.
+     */
+    const val BASE_PLAN_YEARLY = "annual"
     /** One-time in-app product. */
     const val PRO_LIFETIME = "tendwell_pro_lifetime"
 
