@@ -19,6 +19,9 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
@@ -42,18 +45,26 @@ import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.min
 import androidx.compose.ui.unit.sp
 import app.tendwell.day.rememberTicker
 import app.tendwell.timebar.DayEvent
 import app.tendwell.timebar.TimeBarModel
+import app.tendwell.ui.components.ReadableWidth
 import app.tendwell.ui.components.TwIconButton
 import app.tendwell.ui.components.TwIcons
+import app.tendwell.ui.components.WideMaxWidth
+import app.tendwell.ui.components.isWide
 import app.tendwell.ui.theme.Tendwell
 import app.tendwell.ui.theme.TendwellType
 
-/** Full-screen focus timer for the Now task or a break, and the "Done" moment after it. */
+/**
+ * Full-screen focus timer for the Now task or a break, and the "Done" moment after it.
+ * On a wide window ([isWide]) the ring and its buttons sit on the left and the
+ * task, its times and the next event on the right.
+ */
 @Composable
 fun TimerScreen(
     task: NowTask,
@@ -66,36 +77,56 @@ fun TimerScreen(
     onStartBreak: () -> Unit,
 ) {
     val c = Tendwell.colors
-    Column(
-        Modifier
-            .fillMaxSize()
-            .background(c.bg)
-            .safeDrawingPadding()
-            .padding(start = 24.dp, end = 24.dp, top = 8.dp, bottom = 28.dp),
-    ) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            TwIconButton(TwIcons.ChevronDown, contentDescription = "Back to Home", onClick = onBack, modifier = Modifier.offset(x = (-10).dp))
-            Spacer(Modifier.weight(1f))
-            if (task.phase != NowPhase.Done) {
-                val isBreak = task.phase == NowPhase.Break
-                Eyebrow(
-                    if (isBreak) "Break" else "Now",
-                    dot = if (isBreak) c.time else c.primary,
-                    ink = if (isBreak) c.onTimeSoft else c.onPrimarySoft,
-                    pulsing = task.running,
-                )
+    BoxWithConstraints(Modifier.fillMaxSize().background(c.bg), contentAlignment = Alignment.TopCenter) {
+        val wide = isWide(maxWidth, maxHeight)
+        // Room for the ring once the top bar and the buttons under it are placed.
+        val wideRing = (maxHeight - 260.dp).coerceIn(140.dp, 300.dp)
+        Column(
+            Modifier
+                .widthIn(max = if (wide) WideMaxWidth else ReadableWidth)
+                .fillMaxSize()
+                .safeDrawingPadding()
+                .padding(start = 24.dp, end = 24.dp, top = 8.dp, bottom = if (wide) 20.dp else 28.dp),
+        ) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                TwIconButton(TwIcons.ChevronDown, contentDescription = "Back to Home", onClick = onBack, modifier = Modifier.offset(x = (-10).dp))
+                if (!wide) {
+                    Spacer(Modifier.weight(1f))
+                    if (task.phase != NowPhase.Done) PhaseEyebrow(task)
+                    Spacer(Modifier.weight(1f))
+                    Spacer(Modifier.size(34.dp))
+                }
             }
-            Spacer(Modifier.weight(1f))
-            Spacer(Modifier.size(34.dp))
-        }
 
-        if (task.phase == NowPhase.Done) {
-            DoneMoment(task, nextEvent, onBack, onStartBreak)
-        } else {
-            Counting(task, nextEvent, onPause, onResume, onAddFive, onDone)
+            when {
+                task.phase == NowPhase.Done && wide -> DoneMomentWide(task, nextEvent, onBack, onStartBreak)
+                task.phase == NowPhase.Done -> DoneMoment(task, nextEvent, onBack, onStartBreak)
+                wide -> CountingWide(task, nextEvent, wideRing, onPause, onResume, onAddFive, onDone)
+                else -> Counting(task, nextEvent, onPause, onResume, onAddFive, onDone)
+            }
         }
     }
 }
+
+@Composable
+private fun PhaseEyebrow(task: NowTask) {
+    val c = Tendwell.colors
+    val isBreak = task.phase == NowPhase.Break
+    Eyebrow(
+        if (isBreak) "Break" else "Now",
+        dot = if (isBreak) c.time else c.primary,
+        ink = if (isBreak) c.onTimeSoft else c.onPrimarySoft,
+        pulsing = task.running,
+    )
+}
+
+/** "10:17 → 10:42", or when it would end if resumed now. */
+private fun rangeText(task: NowTask, now: Long): String =
+    if (task.running || task.timeIsUp(now)) {
+        "${clockAt(task.startedAtMs)} → ${clockAt(task.endAtMs)}"
+    } else {
+        "Paused · ends ${clockAt(task.projectedEndMs(now))} if you resume now"
+    }
 
 @Composable
 private fun androidx.compose.foundation.layout.ColumnScope.Counting(
@@ -109,12 +140,6 @@ private fun androidx.compose.foundation.layout.ColumnScope.Counting(
     val c = Tendwell.colors
     val now by rememberTicker(active = task.running)
     val isBreak = task.phase == NowPhase.Break
-    val accent = if (isBreak) c.time else c.primary
-    val left = task.remainingMs(now)
-    val totalMin = (task.totalMs / 60_000).toInt()
-    val secs = (left + 999) / 1000
-    val clock = "${secs / 60}:${(secs % 60).toString().padStart(2, '0')}"
-    val up = task.timeIsUp(now)
 
     Column(Modifier.padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(
@@ -124,61 +149,133 @@ private fun androidx.compose.foundation.layout.ColumnScope.Counting(
             maxLines = 3,
             modifier = Modifier.semantics { heading() },
         )
-        val range = if (task.running || up) {
-            "${clockAt(task.startedAtMs)} → ${clockAt(task.endAtMs)}"
-        } else {
-            "Paused · ends ${clockAt(task.projectedEndMs(now))} if you resume now"
-        }
-        Text(range, style = TendwellType.secondary, color = c.ink2)
+        Text(rangeText(task, now), style = TendwellType.secondary, color = c.ink2)
     }
 
     Spacer(Modifier.weight(1f).heightIn(min = 16.dp))
 
     BoxWithConstraints(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-        val ringSize = min(maxWidth, 288.dp)
-        Box(
-            Modifier
-                .size(ringSize)
-                .clearAndSetSemantics {
-                    contentDescription = when {
-                        up -> if (isBreak) "Break's over" else "Time's up"
-                        task.running -> "${secs / 60} minutes ${secs % 60} seconds left of $totalMin minutes"
-                        else -> "Paused, ${secs / 60} minutes left"
-                    }
-                    liveRegion = LiveRegionMode.Polite
-                },
-            contentAlignment = Alignment.Center,
-        ) {
-            TimerRing(
-                fractionLeft = task.fractionLeft(now),
-                track = if (isBreak) c.time else c.primaryLine,
-                trackAlpha = if (isBreak) 0.24f else 1f,
-                progress = accent,
-                progressAlpha = if (task.running) 1f else 0.55f,
-                strokeWidth = 15.dp,
-                modifier = Modifier.size(ringSize),
-            )
-            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(
-                    if (up) "0:00" else clock,
-                    style = TendwellType.body.copy(fontSize = 60.sp, fontWeight = FontWeight.SemiBold, fontFeatureSettings = "tnum", lineHeight = 64.sp),
-                    color = c.ink,
-                )
-                Text(
-                    when {
-                        up -> if (isBreak) "Break's over" else "Time's up"
-                        task.running -> "of $totalMin min"
-                        else -> "Paused"
-                    },
-                    style = TendwellType.secondary,
-                    color = c.ink2,
-                )
-            }
-        }
+        TimerDial(task, now, min(maxWidth, 288.dp))
     }
 
+    TimerControls(task, now, onPause, onResume, onAddFive, onDone, Modifier.fillMaxWidth().padding(top = 28.dp))
+
+    Spacer(Modifier.weight(1f).heightIn(min = 16.dp))
+
+    TimerInfo(task, now, nextEvent, Modifier.fillMaxWidth())
+}
+
+@Composable
+private fun androidx.compose.foundation.layout.ColumnScope.CountingWide(
+    task: NowTask,
+    nextEvent: DayEvent?,
+    ringSize: Dp,
+    onPause: () -> Unit,
+    onResume: () -> Unit,
+    onAddFive: () -> Unit,
+    onDone: () -> Unit,
+) {
+    val c = Tendwell.colors
+    val now by rememberTicker(active = task.running)
+    val isBreak = task.phase == NowPhase.Break
+
     Row(
-        Modifier.fillMaxWidth().padding(top = 28.dp),
+        Modifier.fillMaxWidth().weight(1f),
+        horizontalArrangement = Arrangement.spacedBy(48.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+            TimerDial(task, now, ringSize)
+            TimerControls(task, now, onPause, onResume, onAddFive, onDone, Modifier.widthIn(max = 440.dp).fillMaxWidth().padding(top = 28.dp))
+        }
+        Column(
+            Modifier.weight(1f).verticalScroll(rememberScrollState()),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            PhaseEyebrow(task)
+            Text(
+                if (isBreak) "Break" else task.title,
+                style = TendwellType.h1,
+                color = c.ink,
+                maxLines = 3,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(top = 16.dp).semantics { heading() },
+            )
+            Text(rangeText(task, now), style = TendwellType.secondary, color = c.ink2, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 6.dp))
+            TimerInfo(task, now, nextEvent, Modifier.widthIn(max = 480.dp).fillMaxWidth().padding(top = 32.dp))
+        }
+    }
+}
+
+/** The ring with the time left inside; [size] is 288 dp on most phones. */
+@Composable
+private fun TimerDial(task: NowTask, now: Long, size: Dp) {
+    val c = Tendwell.colors
+    val isBreak = task.phase == NowPhase.Break
+    val left = task.remainingMs(now)
+    val totalMin = (task.totalMs / 60_000).toInt()
+    val secs = (left + 999) / 1000
+    val clock = "${secs / 60}:${(secs % 60).toString().padStart(2, '0')}"
+    val up = task.timeIsUp(now)
+    // The digits shrink with a small ring so "18:40" still fits inside it.
+    val k = (size / 288.dp).coerceAtMost(1f)
+    Box(
+        Modifier
+            .size(size)
+            .clearAndSetSemantics {
+                contentDescription = when {
+                    up -> if (isBreak) "Break's over" else "Time's up"
+                    task.running -> "${secs / 60} minutes ${secs % 60} seconds left of $totalMin minutes"
+                    else -> "Paused, ${secs / 60} minutes left"
+                }
+                liveRegion = LiveRegionMode.Polite
+            },
+        contentAlignment = Alignment.Center,
+    ) {
+        TimerRing(
+            fractionLeft = task.fractionLeft(now),
+            track = if (isBreak) c.time else c.primaryLine,
+            trackAlpha = if (isBreak) 0.24f else 1f,
+            progress = if (isBreak) c.time else c.primary,
+            progressAlpha = if (task.running) 1f else 0.55f,
+            strokeWidth = 15.dp,
+            modifier = Modifier.size(size),
+        )
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(
+                if (up) "0:00" else clock,
+                style = TendwellType.body.copy(fontSize = 60.sp * k, fontWeight = FontWeight.SemiBold, fontFeatureSettings = "tnum", lineHeight = 64.sp * k),
+                color = c.ink,
+            )
+            Text(
+                when {
+                    up -> if (isBreak) "Break's over" else "Time's up"
+                    task.running -> "of $totalMin min"
+                    else -> "Paused"
+                },
+                style = TendwellType.secondary,
+                color = c.ink2,
+            )
+        }
+    }
+}
+
+/** +5 min, pause or resume, and Done (End for a break). */
+@Composable
+private fun TimerControls(
+    task: NowTask,
+    now: Long,
+    onPause: () -> Unit,
+    onResume: () -> Unit,
+    onAddFive: () -> Unit,
+    onDone: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val c = Tendwell.colors
+    val isBreak = task.phase == NowPhase.Break
+    val up = task.timeIsUp(now)
+    Row(
+        modifier,
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterHorizontally),
     ) {
@@ -188,7 +285,7 @@ private fun androidx.compose.foundation.layout.ColumnScope.Counting(
             Modifier
                 .size(76.dp)
                 .clip(CircleShape)
-                .background(accent)
+                .background(if (isBreak) c.time else c.primary)
                 .clickable(role = Role.Button, onClickLabel = if (playing) "Pause timer" else "Resume timer", onClick = if (playing) onPause else if (up) onAddFive else onResume),
             contentAlignment = Alignment.Center,
         ) {
@@ -201,18 +298,20 @@ private fun androidx.compose.foundation.layout.ColumnScope.Counting(
         }
         PillButton(if (isBreak) "End" else "Done", TwIcons.Check, onDone, Modifier.weight(1f))
     }
+}
 
-    Spacer(Modifier.weight(1f).heightIn(min = 16.dp))
-
+/** The card with the next event and when the nudge comes, or the break note. */
+@Composable
+private fun TimerInfo(task: NowTask, now: Long, nextEvent: DayEvent?, modifier: Modifier = Modifier) {
+    val c = Tendwell.colors
     Column(
-        Modifier
-            .fillMaxWidth()
+        modifier
             .clip(RoundedCornerShape(24.dp))
             .background(c.surface)
             .padding(horizontal = 18.dp, vertical = 14.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        if (isBreak) {
+        if (task.phase == NowPhase.Break) {
             InfoLine(TwIcons.Sprout, "Step away from the screen. Back to it at ${clockAt(task.projectedEndMs(now))}.")
         } else {
             nextEvent?.let { InfoLine(TwIcons.Calendar, "Next: ${it.title} at ${TimeBarModel.formatClock(it.startMin)}") }
@@ -221,13 +320,9 @@ private fun androidx.compose.foundation.layout.ColumnScope.Counting(
     }
 }
 
+/** The check that pops in when a task is done, unless animations are off. */
 @Composable
-private fun androidx.compose.foundation.layout.ColumnScope.DoneMoment(
-    task: NowTask,
-    nextEvent: DayEvent?,
-    onHome: () -> Unit,
-    onStartBreak: () -> Unit,
-) {
+private fun DoneBadge() {
     val c = Tendwell.colors
     val context = LocalContext.current
     val scale = remember { Animatable(1f) }
@@ -238,35 +333,40 @@ private fun androidx.compose.foundation.layout.ColumnScope.DoneMoment(
             scale.animateTo(1f, keyframes { durationMillis = 400; 1.06f at 280 })
         }
     }
+    Box(Modifier.size(200.dp), contentAlignment = Alignment.Center) {
+        Box(Modifier.size(200.dp).scale(scale.value).clip(CircleShape).background(c.primarySoft))
+        Box(Modifier.size(132.dp).scale(scale.value).clip(CircleShape).background(c.primaryLine))
+        Box(
+            Modifier.size(96.dp).scale(scale.value).clip(CircleShape).background(c.primary),
+            contentAlignment = Alignment.Center,
+        ) { Icon(TwIcons.Check, null, tint = c.onPrimary, modifier = Modifier.size(48.dp)) }
+    }
+}
 
-    Spacer(Modifier.weight(1f))
-    Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(28.dp)) {
-        Box(Modifier.size(200.dp), contentAlignment = Alignment.Center) {
-            Box(Modifier.size(200.dp).scale(scale.value).clip(CircleShape).background(c.primarySoft))
-            Box(Modifier.size(132.dp).scale(scale.value).clip(CircleShape).background(c.primaryLine))
-            Box(
-                Modifier.size(96.dp).scale(scale.value).clip(CircleShape).background(c.primary),
-                contentAlignment = Alignment.Center,
-            ) { Icon(TwIcons.Check, null, tint = c.onPrimary, modifier = Modifier.size(48.dp)) }
-        }
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier.semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Polite },
-        ) {
-            Text("Done. That counts.", style = TendwellType.h1, color = c.ink, textAlign = TextAlign.Center)
-            val line = if (task.spentMinutes > 0) "${task.spentMinutes} minutes on ${task.title}." else "${task.title}: done."
-            Text(line, style = TendwellType.body, color = c.ink2, textAlign = TextAlign.Center)
-            nextEvent?.let {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Icon(TwIcons.Calendar, null, tint = c.time, modifier = Modifier.size(16.dp))
-                    Text("Next: ${it.title} at ${TimeBarModel.formatClock(it.startMin)}", style = TendwellType.small, color = c.ink2)
-                }
+@Composable
+private fun DoneText(task: NowTask, nextEvent: DayEvent?) {
+    val c = Tendwell.colors
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Polite },
+    ) {
+        Text("Done. That counts.", style = TendwellType.h1, color = c.ink, textAlign = TextAlign.Center)
+        val line = if (task.spentMinutes > 0) "${task.spentMinutes} minutes on ${task.title}." else "${task.title}: done."
+        Text(line, style = TendwellType.body, color = c.ink2, textAlign = TextAlign.Center)
+        nextEvent?.let {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Icon(TwIcons.Calendar, null, tint = c.time, modifier = Modifier.size(16.dp))
+                Text("Next: ${it.title} at ${TimeBarModel.formatClock(it.startMin)}", style = TendwellType.small, color = c.ink2)
             }
         }
     }
-    Spacer(Modifier.weight(1f))
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+}
+
+@Composable
+private fun DoneButtons(onHome: () -> Unit, onStartBreak: () -> Unit, modifier: Modifier = Modifier) {
+    val c = Tendwell.colors
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(
             Modifier
                 .fillMaxWidth()
@@ -281,6 +381,46 @@ private fun androidx.compose.foundation.layout.ColumnScope.DoneMoment(
             Text("Back to Home", style = TendwellType.button.copy(fontSize = 16.sp), color = c.onPrimary)
         }
         PillButton("Take a ${NowTask.BREAK_MINUTES} min break", TwIcons.Hourglass, onStartBreak, Modifier.fillMaxWidth().height(52.dp))
+    }
+}
+
+@Composable
+private fun androidx.compose.foundation.layout.ColumnScope.DoneMoment(
+    task: NowTask,
+    nextEvent: DayEvent?,
+    onHome: () -> Unit,
+    onStartBreak: () -> Unit,
+) {
+    Spacer(Modifier.weight(1f))
+    Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(28.dp)) {
+        DoneBadge()
+        DoneText(task, nextEvent)
+    }
+    Spacer(Modifier.weight(1f))
+    DoneButtons(onHome, onStartBreak, Modifier.fillMaxWidth())
+}
+
+@Composable
+private fun androidx.compose.foundation.layout.ColumnScope.DoneMomentWide(
+    task: NowTask,
+    nextEvent: DayEvent?,
+    onHome: () -> Unit,
+    onStartBreak: () -> Unit,
+) {
+    Row(
+        Modifier.fillMaxWidth().weight(1f),
+        horizontalArrangement = Arrangement.spacedBy(48.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(Modifier.weight(1f), contentAlignment = Alignment.Center) { DoneBadge() }
+        Column(
+            Modifier.weight(1f).verticalScroll(rememberScrollState()),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(32.dp),
+        ) {
+            DoneText(task, nextEvent)
+            DoneButtons(onHome, onStartBreak, Modifier.widthIn(max = 440.dp).fillMaxWidth())
+        }
     }
 }
 
