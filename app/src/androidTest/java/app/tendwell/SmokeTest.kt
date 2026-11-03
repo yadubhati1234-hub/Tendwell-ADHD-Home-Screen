@@ -64,7 +64,12 @@ class SmokeTest {
         )
         // CI starts the emulator with animations off; most phones have them on.
         .around(object : ExternalResource() {
-            override fun before() = setAnimations(true)
+            override fun before() {
+                setAnimations(true)
+                // A slow emulator's own launcher can raise "isn't responding" dialogs over the app.
+                shell("settings put global hide_error_dialogs 1")
+                shell("settings put secure anr_show_background 0")
+            }
         })
         .around(compose)
 
@@ -118,7 +123,7 @@ class SmokeTest {
 
         // 8. A Now task with a timer.
         clickText("Set a Now task")
-        waitForText("For how long?")
+        waitForText("Save without a timer")
         compose.onNode(hasContentDescription("Task for now")).performTextInput("Write the report")
         snap("now-sheet")
         clickText("Start timer")
@@ -204,7 +209,7 @@ class SmokeTest {
         Espresso.pressBack()
         waitUntil("the sheet to close", 5_000) { !exists(hasText("App info")) }
         clickText("Now task", substring = true)
-        waitUntil("the Now sheet with animations off", 10_000) { exists(hasText("For how long?")) }
+        waitUntil("the Now sheet with animations off", 10_000) { exists(hasText("Save without a timer")) }
         snap("no-animations-now-sheet")
         Espresso.pressBack()
     }
@@ -247,10 +252,12 @@ class SmokeTest {
     private fun setAnimations(on: Boolean) {
         val scale = if (on) "1" else "0"
         for (name in listOf("window_animation_scale", "transition_animation_scale", "animator_duration_scale")) {
-            ParcelFileDescriptor.AutoCloseInputStream(
-                instrumentation.uiAutomation.executeShellCommand("settings put global $name $scale"),
-            ).use { it.readBytes() }
+            shell("settings put global $name $scale")
         }
+    }
+
+    private fun shell(command: String) {
+        ParcelFileDescriptor.AutoCloseInputStream(instrumentation.uiAutomation.executeShellCommand(command)).use { it.readBytes() }
     }
 
     /**
