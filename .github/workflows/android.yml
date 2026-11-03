@@ -138,6 +138,10 @@ jobs:
           fi
           find app/build/outputs/androidTest-results -name '*.xml' -exec cp {} emulator-shots/ \; 2>/dev/null || true
           ls -la emulator-shots
+          # On a failure, print what was on screen (the test logs the semantics tree) so the job log shows it.
+          if [ -f smoke-failed ] && [ -f emulator-shots/logcat.txt ]; then
+            grep -E " (SmokeTest|TestRunner|AndroidRuntime)\(" emulator-shots/logcat.txt | tail -n 400 || true
+          fi
 
       - name: Upload emulator results
         if: always()
@@ -147,8 +151,11 @@ jobs:
           path: emulator-shots/
           retention-days: 14
 
+      # Pull request runs push too (to shots/emulator-<number>-merge), so a
+      # failure there can be seen. A fork's read-only token can't push, which is fine.
       - name: Push emulator screenshots
-        if: always() && github.event_name == 'push'
+        if: always()
+        continue-on-error: true
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: bash .github/scripts/push-screenshots.sh emulator-shots emulator

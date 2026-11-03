@@ -16,6 +16,9 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.ui.platform.LocalView
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.background
@@ -215,6 +218,14 @@ class MainActivity : ComponentActivity() {
 
         val currentDay: DayState? = day
         val today = nowMinute.toLocalDate()
+        // The keyboard from Search or the check-in can outlive its text field and cover the next
+        // screen's buttons (seen on the pause screen), so it closes whenever the screen changes.
+        val rootView = LocalView.current
+        LaunchedEffect(screen) {
+            if (screen != Screen.Search) {
+                WindowCompat.getInsetsController(window, rootView).hide(WindowInsetsCompat.Type.ime())
+            }
+        }
         LaunchedEffect(currentDay?.checkInDate, today, screen, onboardingDone) {
             if (currentDay != null && onboardingDone == true && screen == Screen.Home && currentDay.checkInDate != today &&
                 checkInOfferedOn != today.toString()
