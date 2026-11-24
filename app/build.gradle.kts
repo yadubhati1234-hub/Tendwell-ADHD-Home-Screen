@@ -28,7 +28,11 @@ android {
         targetSdk = 36
         // CI passes the run number so every uploaded build has a higher code.
         versionCode = (System.getenv("VERSION_CODE") ?: "1").toInt()
-        versionName = "0.1.0"
+        versionName = "1.0.0"
+        // Selling Pro. false for the free launch: no paywall, no upgrade prompts and no
+        // billing calls, and every Pro feature is open to everyone. Set it back to true
+        // in an update once the Play payments profile can take payments.
+        buildConfigField("boolean", "PRO_ENABLED", "false")
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 

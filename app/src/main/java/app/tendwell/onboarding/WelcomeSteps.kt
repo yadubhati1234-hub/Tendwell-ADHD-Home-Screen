@@ -1,5 +1,6 @@
 package app.tendwell.onboarding
 
+import android.os.Build
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.LinearOutSlowInEasing
@@ -87,6 +88,10 @@ fun SetHomeStep(isDefaultHome: Boolean, onBack: () -> Unit, onSetHome: () -> Uni
         Column(Modifier.padding(top = 24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             FeatureRow(TwIcons.Undo, c.mint, "Switch back any time", "Settings has a one-tap way back to your old launcher.")
             FeatureRow(TwIcons.Shield, c.sky, "Nothing leaves your phone", "No account, no tracking of what you do in apps.")
+            val gestureBrand = remember { GestureNote.brandFor(Build.MANUFACTURER, Build.BRAND) }
+            if (gestureBrand != null) {
+                FeatureRow(TwIcons.Info, c.butter, "About gestures", GestureNote.text(gestureBrand))
+            }
         }
         Spacer(Modifier.weight(1f))
         Column(Modifier.padding(top = 16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {

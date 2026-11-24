@@ -1,5 +1,6 @@
 package app.tendwell.onboarding
 
+import app.tendwell.BuildConfig
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -42,9 +43,10 @@ import app.tendwell.ui.components.TwIcons
 import app.tendwell.ui.theme.Tendwell
 import app.tendwell.ui.theme.TendwellType
 
-const val ONBOARDING_STEPS = 5
+/** Welcome, Essentials, PauseApps, SetHome, and the paywall while Pro is sold. */
+val ONBOARDING_STEPS = if (BuildConfig.PRO_ENABLED) 5 else 4
 
-/** Row of 5 step indicators: current is a 22dp pill, done and upcoming are 8dp dots. */
+/** Row of step indicators: current is a 22dp pill, done and upcoming are 8dp dots. */
 @Composable
 fun StepDots(step: Int, modifier: Modifier = Modifier) {
     val c = Tendwell.colors

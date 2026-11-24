@@ -148,6 +148,16 @@ class MainActivity : ComponentActivity() {
             pauseFor = null
         }
 
+        // Leaving the set-home step: on to the paywall while Pro is sold, otherwise onboarding is done.
+        fun leaveSetHome() {
+            if (BuildConfig.PRO_ENABLED) {
+                obStep = 5
+            } else {
+                launcher.finishOnboarding()
+                goHome()
+            }
+        }
+
         fun openPaywall(from: Screen) {
             paywallReturn = from
             sheetFor = null
@@ -188,16 +198,21 @@ class MainActivity : ComponentActivity() {
             isDefaultHome = launcher.isDefaultHome()
             dayModel.refreshCalendar()
             // Re-check Pro a moment after Home is up, so billing never slows the first frame.
-            val refresh = scope.launch {
-                delay(1500)
-                tendwell.billing.refreshIfStale()
+            // While Pro is not sold, billing is never started.
+            val refresh = if (BuildConfig.PRO_ENABLED) {
+                scope.launch {
+                    delay(1500)
+                    tendwell.billing.refreshIfStale()
+                }
+            } else {
+                null
             }
-            onPauseOrDispose { refresh.cancel() }
+            onPauseOrDispose { refresh?.cancel() }
         }
 
         val homeRoleRequest = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
             isDefaultHome = launcher.isDefaultHome()
-            obStep = 5
+            leaveSetHome()
         }
         fun requestHomeRole() {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -208,7 +223,7 @@ class MainActivity : ComponentActivity() {
                 }
             }
             startSafely(launcher.homeSettingsIntent())
-            obStep = 5
+            leaveSetHome()
         }
         // Refresh calendar events every hour while Home is open, and when the day setting changes.
         LaunchedEffect(nowMinute.hour, day?.calendarOn) { dayModel.refreshCalendar() }
@@ -303,7 +318,7 @@ class MainActivity : ComponentActivity() {
                             isDefaultHome = isDefaultHome,
                             onBack = { obStep = 3 },
                             onSetHome = ::requestHomeRole,
-                            onNext = { obStep = 5 },
+                            onNext = ::leaveSetHome,
                         )
                         else -> PaywallRoute(tendwell.billing, step = 5, onDone = ::finish)
                     }

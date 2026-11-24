@@ -1,5 +1,6 @@
 package app.tendwell.data
 
+import app.tendwell.BuildConfig
 import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.MutablePreferences
@@ -58,8 +59,11 @@ class Prefs(context: Context) {
      * Whether Pro is on: this Google account owns it, or an access code turned it
      * on. Billing refreshes the purchase part on start, so the cached value only
      * bridges the moment before Play answers; the access code part stays.
+     * While Pro is not sold (BuildConfig.PRO_ENABLED false) everyone has it.
      */
-    val isPro: Flow<Boolean> = store.data.map { (it[IS_PRO] ?: false) || (it[ACCESS_CODE_PRO] ?: false) }
+    val isPro: Flow<Boolean> = store.data.map {
+        !BuildConfig.PRO_ENABLED || (it[IS_PRO] ?: false) || (it[ACCESS_CODE_PRO] ?: false)
+    }
 
     suspend fun setPro(on: Boolean) {
         store.edit { it[IS_PRO] = on }
