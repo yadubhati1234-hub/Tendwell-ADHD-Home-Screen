@@ -18,8 +18,13 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -32,6 +37,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.tendwell.apps.AppEntry
@@ -194,6 +200,18 @@ class MainActivity : ComponentActivity() {
         }
 
         LaunchedEffect(Unit) { homePressed.collect { goHome() } }
+        // Android can bring the keyboard back for the search field a moment after the
+        // long-press sheet closes, even once the pause has replaced search, where it covers
+        // "Back to my task". The pause has no text field, so it never keeps the keyboard.
+        val focusManager = LocalFocusManager.current
+        @OptIn(ExperimentalLayoutApi::class)
+        val imeVisible = WindowInsets.isImeVisible
+        LaunchedEffect(screen, imeVisible) {
+            if (screen == Screen.Pause && imeVisible) {
+                focusManager.clearFocus(force = true)
+                WindowCompat.getInsetsController(window, window.decorView).hide(WindowInsetsCompat.Type.ime())
+            }
+        }
         LifecycleResumeEffect(Unit) {
             isDefaultHome = launcher.isDefaultHome()
             dayModel.refreshCalendar()
