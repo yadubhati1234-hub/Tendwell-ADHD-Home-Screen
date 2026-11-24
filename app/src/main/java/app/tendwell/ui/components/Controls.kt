@@ -1,5 +1,6 @@
 package app.tendwell.ui.components
 
+import app.tendwell.BuildConfig
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.offset
@@ -97,7 +98,7 @@ fun TwRow(
             Icon(icon, contentDescription = null, tint = if (enabled) c.ink else c.ink3, modifier = Modifier.size(22.dp))
         }
         androidx.compose.foundation.layout.Column(Modifier.weight(1f)) {
-            if (proBadge) {
+            if (proBadge && BuildConfig.PRO_ENABLED) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(label, style = TendwellType.rowLabel, color = if (enabled) c.ink else c.ink3)
                     ProBadge()
@@ -162,9 +163,10 @@ fun TwToggleRow(
 private fun Modifier.switchToggle(checked: Boolean, onCheckedChange: (Boolean) -> Unit): Modifier =
     this.toggleable(value = checked, role = Role.Switch, onValueChange = onCheckedChange)
 
-/** The small uppercase "Pro" badge in the time colour. */
+/** The small uppercase "Pro" badge in the time colour. Not drawn while Pro is not sold. */
 @Composable
 fun ProBadge(background: Color = Tendwell.colors.timeSoft) {
+    if (!BuildConfig.PRO_ENABLED) return
     val c = Tendwell.colors
     Box(
         Modifier

@@ -37,6 +37,8 @@ import java.io.FileOutputStream
  * a new user would: onboarding, the check-in, Home, a Now task with its
  * timer and break, search, the long-press sheet, the pause, Settings, the
  * paywall, and (with Pro switched on) weekly insights and focus hours.
+ * While Pro is not sold (BuildConfig.PRO_ENABLED false) there is no paywall:
+ * the walk checks no Pro card shows and opens the Pro screens directly.
  *
  * Any crash fails the test. Each step also saves a screenshot, which CI
  * pushes to a shots/ branch so the real rendering can be checked.
@@ -106,10 +108,12 @@ class SmokeTest {
         clickText("Not now")
 
         // 5. Paywall. With no Play Store it should settle on an error, not hang or crash.
-        waitUntil("the paywall", 10_000) { exists(hasContentDescription("Not now")) }
-        waitUntil("Google Play to answer", 20_000) { !exists(hasText("Loading plans from Google Play…")) }
-        snap("onboarding-paywall")
-        clickDescription("Not now")
+        if (BuildConfig.PRO_ENABLED) {
+            waitUntil("the paywall", 10_000) { exists(hasContentDescription("Not now")) }
+            waitUntil("Google Play to answer", 20_000) { !exists(hasText("Loading plans from Google Play…")) }
+            snap("onboarding-paywall")
+            clickDescription("Not now")
+        }
 
         // 6. The daily check-in opens the first time Home shows.
         waitForText("Set my one thing")
@@ -175,17 +179,24 @@ class SmokeTest {
         clickDescription("Settings")
         waitForText("Bedtime")
         snap("settings")
-        compose.onAllNodes(hasText("See Tendwell Pro")).onFirst().performScrollTo().performClick()
-        waitUntil("the paywall", 10_000) { exists(hasContentDescription("Not now")) }
-        waitUntil("Google Play to answer", 20_000) { !exists(hasText("Loading plans from Google Play…")) }
-        snap("paywall")
-        clickDescription("Not now")
-        waitForText("Bedtime")
+        if (BuildConfig.PRO_ENABLED) {
+            compose.onAllNodes(hasText("See Tendwell Pro")).onFirst().performScrollTo().performClick()
+            waitUntil("the paywall", 10_000) { exists(hasContentDescription("Not now")) }
+            waitUntil("Google Play to answer", 20_000) { !exists(hasText("Loading plans from Google Play…")) }
+            snap("paywall")
+            clickDescription("Not now")
+            waitForText("Bedtime")
 
-        // 13. Pro screens, with Pro switched on the way an access code does it.
-        runBlocking { Prefs(instrumentation.targetContext).setAccessCodePro() }
-        waitForText("Tendwell Pro is on")
-        snap("settings-pro")
+            // 13. Pro screens, with Pro switched on the way an access code does it.
+            runBlocking { Prefs(instrumentation.targetContext).setAccessCodePro() }
+            waitForText("Tendwell Pro is on")
+            snap("settings-pro")
+        } else {
+            // 13. The free build: no Pro card, no badges, and the Pro screens open for everyone.
+            check(!exists(hasText("See Tendwell Pro", substring = true)) && !exists(hasText("PRO"))) {
+                "The free build shows a Pro prompt in Settings"
+            }
+        }
         compose.onAllNodes(hasText("Weekly insights")).onFirst().performScrollTo().performClick()
         waitForText("Your week")
         snap("insights")

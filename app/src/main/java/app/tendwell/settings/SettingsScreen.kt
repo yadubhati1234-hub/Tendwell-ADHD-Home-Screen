@@ -21,6 +21,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import app.tendwell.BuildConfig
 import app.tendwell.BuildConfigInfo
 import app.tendwell.ui.components.TwIconButton
 import app.tendwell.ui.components.TwIcons
@@ -134,33 +135,36 @@ fun SettingsScreen(
             )
         }
 
-        SectionLabel("Pro")
-        Column(
-            Modifier
-                .fillMaxWidth()
-                .then(if (c.isDark) Modifier else Modifier.shadow(6.dp, cardShape, ambientColor = c.ink, spotColor = c.ink))
-                .clip(cardShape)
-                .background(c.surface)
-                .border(1.dp, c.cardLine, cardShape),
-        ) {
-            if (isPro) {
-                TwRow("Tendwell Pro is on", onClick = null, enabled = true, icon = TwIcons.Sprout, supporting = "Thank you for supporting Tendwell")
-                HorizontalDivider(color = c.line)
-                TwRow(
-                    "Manage subscription",
-                    onClick = onManagePro,
-                    icon = TwIcons.Settings,
-                    supporting = "Change or cancel in Google Play",
-                    trailing = TwIcons.ChevronRight,
-                )
-            } else {
-                TwRow(
-                    "See Tendwell Pro",
-                    onClick = onOpenPro,
-                    icon = TwIcons.Sprout,
-                    supporting = "Pause more than ${Prefs.MAX_FREE_PAUSED} apps, focus hours and weekly insights",
-                    trailing = TwIcons.ChevronRight,
-                )
+        // The Pro card only shows while Pro is sold.
+        if (BuildConfig.PRO_ENABLED) {
+            SectionLabel("Pro")
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .then(if (c.isDark) Modifier else Modifier.shadow(6.dp, cardShape, ambientColor = c.ink, spotColor = c.ink))
+                    .clip(cardShape)
+                    .background(c.surface)
+                    .border(1.dp, c.cardLine, cardShape),
+            ) {
+                if (isPro) {
+                    TwRow("Tendwell Pro is on", onClick = null, enabled = true, icon = TwIcons.Sprout, supporting = "Thank you for supporting Tendwell")
+                    HorizontalDivider(color = c.line)
+                    TwRow(
+                        "Manage subscription",
+                        onClick = onManagePro,
+                        icon = TwIcons.Settings,
+                        supporting = "Change or cancel in Google Play",
+                        trailing = TwIcons.ChevronRight,
+                    )
+                } else {
+                    TwRow(
+                        "See Tendwell Pro",
+                        onClick = onOpenPro,
+                        icon = TwIcons.Sprout,
+                        supporting = "Pause more than ${Prefs.MAX_FREE_PAUSED} apps, focus hours and weekly insights",
+                        trailing = TwIcons.ChevronRight,
+                    )
+                }
             }
         }
 

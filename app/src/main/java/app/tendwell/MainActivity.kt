@@ -18,8 +18,13 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -32,6 +37,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.tendwell.apps.AppEntry
@@ -148,6 +154,16 @@ class MainActivity : ComponentActivity() {
             pauseFor = null
         }
 
+        // Leaving the set-home step: on to the paywall while Pro is sold, otherwise onboarding is done.
+        fun leaveSetHome() {
+            if (BuildConfig.PRO_ENABLED) {
+                obStep = 5
+            } else {
+                launcher.finishOnboarding()
+                goHome()
+            }
+        }
+
         fun openPaywall(from: Screen) {
             paywallReturn = from
             sheetFor = null
@@ -184,20 +200,37 @@ class MainActivity : ComponentActivity() {
         }
 
         LaunchedEffect(Unit) { homePressed.collect { goHome() } }
+        // Android can bring the keyboard back for the search field a moment after the
+        // long-press sheet closes, even once the pause has replaced search, where it covers
+        // "Back to my task". The pause has no text field, so it never keeps the keyboard.
+        val focusManager = LocalFocusManager.current
+        @OptIn(ExperimentalLayoutApi::class)
+        val imeVisible = WindowInsets.isImeVisible
+        LaunchedEffect(screen, imeVisible) {
+            if (screen == Screen.Pause && imeVisible) {
+                focusManager.clearFocus(force = true)
+                WindowCompat.getInsetsController(window, window.decorView).hide(WindowInsetsCompat.Type.ime())
+            }
+        }
         LifecycleResumeEffect(Unit) {
             isDefaultHome = launcher.isDefaultHome()
             dayModel.refreshCalendar()
             // Re-check Pro a moment after Home is up, so billing never slows the first frame.
-            val refresh = scope.launch {
-                delay(1500)
-                tendwell.billing.refreshIfStale()
+            // While Pro is not sold, billing is never started.
+            val refresh = if (BuildConfig.PRO_ENABLED) {
+                scope.launch {
+                    delay(1500)
+                    tendwell.billing.refreshIfStale()
+                }
+            } else {
+                null
             }
-            onPauseOrDispose { refresh.cancel() }
+            onPauseOrDispose { refresh?.cancel() }
         }
 
         val homeRoleRequest = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
             isDefaultHome = launcher.isDefaultHome()
-            obStep = 5
+            leaveSetHome()
         }
         fun requestHomeRole() {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -208,7 +241,7 @@ class MainActivity : ComponentActivity() {
                 }
             }
             startSafely(launcher.homeSettingsIntent())
-            obStep = 5
+            leaveSetHome()
         }
         // Refresh calendar events every hour while Home is open, and when the day setting changes.
         LaunchedEffect(nowMinute.hour, day?.calendarOn) { dayModel.refreshCalendar() }
@@ -303,7 +336,7 @@ class MainActivity : ComponentActivity() {
                             isDefaultHome = isDefaultHome,
                             onBack = { obStep = 3 },
                             onSetHome = ::requestHomeRole,
-                            onNext = { obStep = 5 },
+                            onNext = ::leaveSetHome,
                         )
                         else -> PaywallRoute(tendwell.billing, step = 5, onDone = ::finish)
                     }
