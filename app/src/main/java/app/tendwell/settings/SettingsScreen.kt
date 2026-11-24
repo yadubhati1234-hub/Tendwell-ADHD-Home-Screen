@@ -21,6 +21,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import app.tendwell.BuildConfig
 import app.tendwell.BuildConfigInfo
 import app.tendwell.ui.components.TwIconButton
 import app.tendwell.ui.components.TwIcons
